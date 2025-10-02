@@ -1,21 +1,23 @@
-# Python/Backend (UV)
-backend/.venv/
-backend/__pycache__/
-backend/*.py[cod]
-backend/*$py.class
-backend/*.so
-backend/.Python
-backend/dist/
-backend/build/
-backend/*.egg-info/
+# Python/Backend
+*/.venv/
+*/__pycache__/
+*/.py[cod]
+*/$py.class
+*/.so
+*/.Python
+*/dist/
+*/build/
+*/.egg-info/
+*.env 
+*.python-version
 
-# Frontend (Node)
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.next/
-frontend/.nuxt/
-frontend/.vite/
+# Frontend
+*/node_modules/
+*/dist/
+*/build/
+*/.next/
+*/.nuxt/
+*/.vite/
 
 # IDE
 .vscode/
@@ -24,5 +26,5 @@ frontend/.vite/
 *.swo
 
 # OS
-.DS_Store
-Thumbs.db
+*.DS_Store
+*.Thumbs.db
