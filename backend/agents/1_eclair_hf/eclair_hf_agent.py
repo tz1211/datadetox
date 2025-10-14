@@ -1,15 +1,6 @@
 from agents import (
     Agent,
-    WebSearchTool, 
-    handoff,
-)
-from .guardrail_agent import sensitive_guardrail
-from pydantic import BaseModel
-from typing import Sequence
-from context import ShinanContext, context_tool
-from ..prompts import Prompt
-from agents.model_settings import ModelSettings
-from agents.extensions import handoff_filters
+}
 
 class TextSearchIdea(BaseModel):
     """
