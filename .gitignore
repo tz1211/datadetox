@@ -57,3 +57,6 @@ next-env.d.ts
 .idea/
 *.swp
 *.swo
+
+# data 
+data/
