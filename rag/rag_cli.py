@@ -61,8 +61,8 @@ def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=
     return chunked_files
 
 def init_db_client(port: int=5432): 
-    chroma_client = chromadb.HttpClient(host="chroma", port = port)
-    # chroma_client = chromadb.PersistentClient(path="data/chroma")
+    # chroma_client = chromadb.HttpClient(host="chroma", port = port)
+    chroma_client = chromadb.PersistentClient(path="data/chroma")
     logger.info("Initialised ChromaDB client")
     return chroma_client 
 
@@ -97,12 +97,54 @@ def populate_db_collection(collection: Collection, chunked_files: dict[list]):
             pbar.update(batch_end - i)
     logger.info(f"Populated collection: {collection.name}") 
 
-def main(input_data_path: str, collection_name: str, chunk_size: int=256, chunk_overlap: int=32): 
+def init_db(input_data_path: str, collection_name: str, chunk_size: int=256, chunk_overlap: int=32):
+    """Initialize the database with documents"""
     md_files = ingest_md_data(input_data_path)
     chunked_files = chunk_md_data(md_files, chunk_size, chunk_overlap)
     chroma_client = init_db_client()
     collection = create_db_collection(chroma_client, collection_name)
     populate_db_collection(collection, chunked_files)
+    logger.info("Database initialisation complete")
+
+def query_rag(query: str, collection_name: str, n_results: int=5):
+    """Query the existing database"""
+    chroma_client = init_db_client()
+    try:
+        collection = chroma_client.get_collection(
+            name=collection_name,
+            embedding_function=DefaultEmbeddingFunction()
+        )
+        logger.info(f"Collection '{collection_name}' found")
+    except Exception as e:
+        logger.error(f"Collection '{collection_name}' not found. Please initialise the database first.")
+        return
+
+    results = collection.query(
+        query_texts=query,
+        n_results=n_results,
+    )
+    logger.info(f"Query results: {results}")
+    return results
+
+def main(
+    init_db: bool = False,
+    input_data_path: str = None,
+    chunk_size: int = 256,
+    chunk_overlap: int = 32, 
+    query: str = None,
+    n_results: int = 5,
+    collection_name: str = None,
+):
+    """Main CLI function that handles both initialization and querying"""
+    if init_db:
+        if not input_data_path:
+            logger.error("input_data_path is required for database initialisation")
+            return
+        init_db(input_data_path, collection_name, chunk_size, chunk_overlap)
+    elif query:
+        query_rag(query, collection_name, n_results)
+    else:
+        logger.error("Please specify either --init_db or --query")
 
 if __name__ == "__main__":
     fire.Fire(main)
