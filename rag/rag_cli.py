@@ -61,8 +61,8 @@ def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=
     return chunked_files
 
 def init_db_client(port: int=5432): 
-    # chroma_client = chromadb.HttpClient(host="chroma", port = port)
-    chroma_client = chromadb.PersistentClient(path="data/chroma")
+    chroma_client = chromadb.HttpClient(host="chroma", port = port)
+    # chroma_client = chromadb.PersistentClient(path="data/chroma")
     logger.info("Initialised ChromaDB client")
     return chroma_client 
 
