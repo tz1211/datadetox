@@ -10,10 +10,12 @@ DataDetox is an AI-powered application designed to help users understand model l
 
 ## Project Wireframe (Missing from Milestone 1)
 - Landing Page:
+![](img/ms1/wireframe_1.png)
+![](img/ms1/wireframe_2.png)
+![](img/ms1/wireframe_3.png)
 
-
-- Chatbot Page
-
+- Chatbot Page:
+![](img/ms1/wireframe_4.png)
 
 Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
