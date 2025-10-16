@@ -9,7 +9,13 @@
 DataDetox is an AI-powered application designed to help users understand model lineages and their associated data. The current system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation from HuggingFace.
 
 ## Project Wireframe (Missing from Milestone 1)
-Screenshots of landing and chatbot pages are added to previous submitted MS1 pdf, see [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
+- Landing Page:
+
+
+- Chatbot Page
+
+
+Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
 ## Project Organization
 
@@ -46,10 +52,9 @@ Screenshots of landing and chatbot pages are added to previous submitted MS1 pdf
 ├── img
 │   ├── ... # images used for README
 │
-├── report
-│   └── AC215_Milestone_1.pdf
-│
-└── docker-volumes/
+└── report
+    └── AC215_Milestone_1.pdf
+
 
 
 ```
@@ -66,7 +71,7 @@ cd AC215_datadetox
 
 ### 1. Data Source
 
-Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/src/transformers/models). 
+Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc). 
 
 - Download the whole folder using tools like [download-directory.github.io](https://download-directory.github.io/)
 - Save all the markdown files inside `data/model_doc` folder.
