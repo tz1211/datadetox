@@ -1,89 +1,167 @@
-# DataDetox Milestone 2
+# DataDetox - AC215 Project
 
-#### Project Milestone 2 Organization
+**Team Members**: Kushal Chattopadhyay, Terry Zhou, Keyu Wang
+
+**Group Name**: DataDetox
+
+## Project Description
+
+DataDetox is an AI-powered application designed to help users understand model lineages and their associated data. The current system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation from HuggingFace.
+
+## Project Wireframe & Workflow (Missing from Milestone 1)
+- Landing Page:
+
+    ![](img/ms1/wireframe_1.png)
+    ![](img/ms1/wireframe_2.png)
+    ![](img/ms1/wireframe_3.png)
+
+- Chatbot Page:
+
+    ![](img/ms1/wireframe_4.png)
+
+- Agentic Workflow (included in Milestone 1):
+    ![](img/ms1/workflow.svg)
+
+Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
+
+## Project Organization
 
 ```
-├── Readme.md
-├── data # DO NOT UPLOAD DATA TO GITHUB, only .gitkeep to keep the directory or a really small sample
-├── notebooks
-│   └── eda.ipynb
-├── references
-├── reports
-│   └── Statement of Work_Sample.pdf
-└── src
-    ├── datapipeline
-    │   ├── Dockerfile
-    │   ├── Pipfile
-    │   ├── Pipfile.lock
-    │   ├── dataloader.py
-    │   ├── docker-shell.sh
-    │   ├── preprocess_cv.py
-    │   ├── preprocess_rag.py
-    └── models
-        ├── Dockerfile
-        ├── docker-shell.sh
-        ├── infer_model.py
-        ├── model_rag.py
-        └── train_model.py
+├── README.md
+├── docker-compose.yml
+├── uv.lock
+│
+├── backend
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── README.md
+│   ├── uv.lock
+│   ├── ... # details omitted as it's not perfectly structured yet
+│
+├── frontend
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── ... # details omitted as it's not perfectly structured yet
+│
+├── data ⭐️   # downloaded data should be stored here
+│
+├── rag ⭐️
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── rag_cli.py
+│   ├── README.md
+│   ├── uv.lock
+│   └── data/
+│
+├── mcp
+│   ├── ... # details omitted as it's not perfectly structured yet
+│
+├── img
+│   ├── ... # images used for README
+│
+└── report
+    └── AC215_Milestone_1.pdf
+
+
+
 ```
 
-# AC215 - Milestone2 - Cheesy App
+## Getting Started
 
-**Team Members**
-Pavlos Parmigianopapas, Pavlos Ricottapapas and Pavlos Gouda-papas
+Clone the repository:
+```bash
+git clone https://github.com/kushal-chat/AC215_datadetox.git
+cd AC215_datadetox
+```
 
-**Group Name**
-The Grate Cheese Group
+## Milestone 2 Components
 
-**Project**
-In this project, we aim to develop an AI-powered cheese application. The app will feature visual recognition technology to identify various types of cheese and include a chatbot for answering all kinds of cheese-related questions. Users can simply take a photo of the cheese, and the app will identify it, providing detailed information. Additionally, the chatbot will allow users to ask cheese-related questions. It will be powered by a RAG model and fine-tuned models, making it a specialist in cheese expertise.
+### 1. Data Source
 
-### Milestone2 ###
+Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc) and are uploaded to our GCS bucket. 
 
-In this milestone, we have the components for data management, including versioning, as well as the computer vision and language models.
+Download the data by running:
+```bash
+chmod +x download_model_doc.sh
+./download_model_doc.sh
+```
 
-**Data**
-We gathered a dataset of 100,000 cheese images representing approximately 1,500 different varieties. The dataset, approximately 100GB in size, was collected from the following sources: (1), (2), (3). We have stored it in a private Google Cloud Bucket.
-Additionally, we compiled 250 bibliographical sources on cheese, including books and reports, from sources such as (4) and (5).
-
-**Data Pipeline Containers**
-1. One container processes the 100GB dataset by resizing the images and storing them back to Google Cloud Storage (GCS).
-
-	**Input:** Source and destination GCS locations, resizing parameters, and required secrets (provided via Docker).
-
-	**Output:** Resized images stored in the specified GCS location.
-
-2. Another container prepares data for the RAG model, including tasks such as chunking, embedding, and populating the vector database.
-
-## Data Pipeline Overview
-
-Data source for RAG: https://github.com/huggingface/transformers/tree/main/src/transformers/models
+You will see new 419 markdown files downloaded in `data/model_doc` folder.
 
 
-1. **`src/datapipeline/preprocess_cv.py`**
-   This script handles preprocessing on our 100GB dataset. It reduces the image sizes to 128x128 (a parameter that can be changed later) to enable faster iteration during processing. The preprocessed dataset is now reduced to 10GB and stored on GCS.
-
-2. **`src/datapipeline/preprocess_rag.py`**
-   This script prepares the necessary data for setting up our vector database. It performs chunking, embedding, and loads the data into a vector database (ChromaDB).
-
-3. **`src/datapipeline/Pipfile`**
-   We used the following packages to help with preprocessing:
-   - `special cheese package`
-
-4. **`src/preprocessing/Dockerfile(s)`**
-   Our Dockerfiles follow standard conventions, with the exception of some specific modifications described in the Dockerfile/described below.
+**Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from HuggingFace, to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
 
 
-## Running Dockerfile
-Instructions for running the Dockerfile can be added here.
-To run Dockerfile - `Instructions here`
+### 2. RAG System
 
-**Models container**
-- This container has scripts for model training, rag pipeline and inference
-- Instructions for running the model container - `Instructions here`
+Our Retrieval-Augmented Generation system serves as a **prompt refining tool** that retrieves information about foundation models and enriches user prompts. When a user mentions something about a foundation model, the RAG system:
+- Retrieves relevant information from the foundation model documentation
+- Enriches the user's prompt with detailed context about the model
 
-**Notebooks/Reports**
-This folder contains code that is not part of container - for e.g: Application mockup, EDA, any 🔍 🕵️‍♀️ 🕵️‍♂️ crucial insights, reports or visualizations.
+#### Functions
 
-----
+This RAG CLI tool uses ChromaDB and LlamaIndex, provides functionality to:
+- Initialise and populate the vector database from a directory by: 
+    - Ingest markdown documents from a directory
+    - Chunk documents using sentence splitting
+    - Store documents in ChromaDB with vector embeddings
+- Query the database for relevant document chunks
+
+#### Set up 
+
+**STEP 1:** To run the containerised pipeline with docker, first start the `rag_cli` and `chromadb` containers by inputting the following commands at the root level of the project: 
+```bash
+docker compose up -d rag_cli
+```
+- You should see outputs like:
+![](img/ms2/docker_compose1.png)
+- Also inside your *docker desktop*, you should see the containers runnning like:
+![](img/ms2/docker_desktop.png)
+
+**STEP 2:** Go inside the rag_cli container with: 
+```bash
+docker compose exec rag_cli bash 
+```
+
+- You will see your bash becomes something like: `root@98f1f5f277a9:/app#` (the number after "@" may be different)
+
+#### Initialise Database
+
+**STEP 3:** To create a new database collection from markdown documents:
+
+```bash
+uv run python rag_cli.py --init_db=True --input_data_path="data/model_doc" --collection_name="hf_foundation_models"
+```
+
+**Parameters:**
+- `--init_db`: Flag to initialise the database
+- `--input_data_path`: Path to directory containing markdown files (default: "data/model_doc")
+- `--collection_name`: Name of the ChromaDB collection (default: "hf_foundation_models")
+- `--chunk_size`: Size of text chunks in characters (default: 256)
+- `--chunk_overlap`: Overlap between chunks in characters (default: 32)
+
+You should see outputs like:
+![](img/ms2/init_db1.png)
+![](img/ms2/init_db2.png)
+![](img/ms2/init_db3.png) at the end of the output.
+
+
+#### Query Database
+
+**STEP 4:** To query the existing database:
+
+```bash
+uv run python rag_cli.py --query=<enter-your-query> --collection_name="hf_foundation_models" --n_results=5
+```
+
+**Parameters:**
+- `--query`: The search query string
+- `--collection_name`: Name of the ChromaDB collection to query
+- `--n_results`: Number of results to return (default: 5)
+
+You should see outputs like:
+![](img/ms2/query1.png) 
+![](img/ms2/query2.png)
+
+For more details, see [rag/README.md](rag/README.md).
 
