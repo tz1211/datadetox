@@ -1,12 +1,15 @@
 # DataDetox - AC215 Project
 
-**Team Members**: Kushal Chauhan, Pavlos Mosho, Rohit Kundu, Ruisen Liu
+**Team Members**: Kushal Chattopadhyay, Terry Zhou, Keyu Wang
 
 **Group Name**: DataDetox
 
 ## Project Description
 
-DataDetox is an AI-powered application designed to help users understand and analyze foundation models and their associated data. The system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation.
+DataDetox is an AI-powered application designed to help users understand model lineages and their associated data. The current system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation from HuggingFace.
+
+## Project Wireframe (Missing from Milestone 1)
+Screenshots of landing and chatbot pages are added to previous submitted MS1 pdf, see `report/AC215_MileStone_1.pdf`.
 
 ## Project Organization
 
@@ -41,16 +44,20 @@ DataDetox is an AI-powered application designed to help users understand and ana
         └── train_model.py
 ```
 
-## Components
+## Milestone 2 Components
 
-### 1. RAG System
+### 1. Data Source
+
+Our data source for RAG comes from the HuggingFace Transformers library. https://github.com/huggingface/transformers/tree/main/src/transformers/models
+
+
+### 2. RAG System
 
 The RAG (Retrieval-Augmented Generation) system serves as a **prompt refining tool** that retrieves information about foundation models and enriches user prompts. When a user mentions something about a foundation model, the RAG system:
 - Retrieves relevant information from the foundation model documentation
 - Enriches the user's prompt with detailed context about the model
-- Provides comprehensive answers based on retrieved information
 
-**Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from Hugging Face in order to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
+**Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from HuggingFace in order to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
 
 #### Running the RAG System
 
@@ -69,44 +76,6 @@ python cli.py --query "What are the details about BERT model?"
 
 For more detailed instructions, see [rag/README.md](rag/README.md).
 
-### 2. Data Pipeline
-
-The data pipeline component handles:
-- Loading data from various sources
-- Data preprocessing and cleaning
-- Preparing data for model training and RAG indexing
-
-**Key Files**:
-- `dataloader.py`: Handles data loading from multiple sources
-- `preprocess.py`: Data preprocessing utilities
-- `docker-shell.sh`: Script to run the data pipeline in Docker
-
-### 3. Models
-
-The models component includes:
-- Model training scripts
-- Inference pipelines
-- Model evaluation utilities
-
-**Key Files**:
-- `train_model.py`: Training pipeline for models
-- `infer_model.py`: Inference and prediction scripts
-- `docker-shell.sh`: Script to run model training/inference in Docker
-
-### 4. Notebooks
-
-Exploratory Data Analysis (EDA) notebooks for:
-- Understanding data distributions
-- Visualizing data patterns
-- Testing preprocessing approaches
-
-## Setup and Installation
-
-### Prerequisites
-
-- Docker and Docker Compose
-- Python 3.9+
-- Google Cloud Platform account (for deployment)
 
 ### Getting Started
 
@@ -115,19 +84,20 @@ Exploratory Data Analysis (EDA) notebooks for:
 git clone https://github.com/kushal-chat/AC215_datadetox.git
 cd AC215_datadetox
 ```
+2. Build the docker images:
 
-2. Set up each component by navigating to its directory and following the respective README:
+```bash
+docker compose up -d rag_cli
+```
+
+3. Navigating to a directory and following the respective README for each component:
    - For RAG system: `cd rag` and see `rag/README.md`
-   - For data pipeline: `cd src/datapipeline`
-   - For models: `cd src/models`
-
-3. Each component uses Docker for containerization. Use the provided `docker-shell.sh` scripts to build and run containers.
 
 ## Usage
 
 ### RAG System for Foundation Model Queries
 
-The RAG system is designed to help users get detailed information about foundation models:
+The RAG system acts as a prompt enrichment tool when welll-known foundation models are mentioned in uer query:
 
 ```bash
 cd rag
@@ -137,17 +107,6 @@ python cli.py --query "Tell me about GPT-3 architecture"
 
 The system will retrieve relevant information from the indexed Hugging Face documentation and provide enriched responses.
 
-## Development
-
-Each component is containerized using Docker for consistency across development and production environments. Use the provided `docker-shell.sh` scripts in each directory to:
-
-- Build Docker images
-- Run containers with appropriate volume mounts
-- Execute component-specific commands
-
-## Contributing
-
-This is an academic project for Harvard AC215. For questions or contributions, please contact the team members.
 
 ## License
 
