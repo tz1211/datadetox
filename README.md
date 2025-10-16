@@ -1,89 +1,154 @@
-# DataDetox Milestone 2
+# DataDetox - AC215 Project
 
-#### Project Milestone 2 Organization
+**Team Members**: Kushal Chauhan, Pavlos Mosho, Rohit Kundu, Ruisen Liu
+
+**Group Name**: DataDetox
+
+## Project Description
+
+DataDetox is an AI-powered application designed to help users understand and analyze foundation models and their associated data. The system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation.
+
+## Project Organization
 
 ```
-├── Readme.md
-├── data # DO NOT UPLOAD DATA TO GITHUB, only .gitkeep to keep the directory or a really small sample
+├── README.md
+├── data                    # Data storage (not uploaded to GitHub)
 ├── notebooks
-│   └── eda.ipynb
-├── references
-├── reports
-│   └── Statement of Work_Sample.pdf
-└── src
-    ├── datapipeline
+│   └── eda.ipynb          # Exploratory Data Analysis
+├── rag                     # RAG system for foundation model information
+│   ├── Dockerfile
+│   ├── Pipfile
+│   ├── Pipfile.lock
+│   ├── README.md
+│   ├── cli.py
+│   ├── docker-shell.sh
+│   └── rag_pipeline.py
+├── references              # Reference materials
+├── reports                 # Project reports and documentation
+│   └── Statement of Work.pdf
+└── src                     # Source code
+    ├── datapipeline       # Data pipeline components
     │   ├── Dockerfile
     │   ├── Pipfile
     │   ├── Pipfile.lock
     │   ├── dataloader.py
     │   ├── docker-shell.sh
-    │   ├── preprocess_cv.py
-    │   ├── preprocess_rag.py
-    └── models
+    │   └── preprocess.py
+    └── models             # Model training and inference
         ├── Dockerfile
         ├── docker-shell.sh
         ├── infer_model.py
-        ├── model_rag.py
         └── train_model.py
 ```
 
-# AC215 - Milestone2 - Cheesy App
+## Components
 
-**Team Members**
-Pavlos Parmigianopapas, Pavlos Ricottapapas and Pavlos Gouda-papas
+### 1. RAG System
 
-**Group Name**
-The Grate Cheese Group
+The RAG (Retrieval-Augmented Generation) system serves as a **prompt refining tool** that retrieves information about foundation models and enriches user prompts. When a user mentions something about a foundation model, the RAG system:
+- Retrieves relevant information from the foundation model documentation
+- Enriches the user's prompt with detailed context about the model
+- Provides comprehensive answers based on retrieved information
 
-**Project**
-In this project, we aim to develop an AI-powered cheese application. The app will feature visual recognition technology to identify various types of cheese and include a chatbot for answering all kinds of cheese-related questions. Users can simply take a photo of the cheese, and the app will identify it, providing detailed information. Additionally, the chatbot will allow users to ask cheese-related questions. It will be powered by a RAG model and fine-tuned models, making it a specialist in cheese expertise.
+**Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from Hugging Face in order to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
 
-### Milestone2 ###
+#### Running the RAG System
 
-In this milestone, we have the components for data management, including versioning, as well as the computer vision and language models.
+To run the RAG system, navigate to the `rag` directory and use the following commands:
 
-**Data**
-We gathered a dataset of 100,000 cheese images representing approximately 1,500 different varieties. The dataset, approximately 100GB in size, was collected from the following sources: (1), (2), (3). We have stored it in a private Google Cloud Bucket.
-Additionally, we compiled 250 bibliographical sources on cheese, including books and reports, from sources such as (4) and (5).
+```bash
+# Build and run the Docker container
+./docker-shell.sh
 
-**Data Pipeline Containers**
-1. One container processes the 100GB dataset by resizing the images and storing them back to Google Cloud Storage (GCS).
+# Index documents (first time setup)
+python cli.py --index
 
-	**Input:** Source and destination GCS locations, resizing parameters, and required secrets (provided via Docker).
+# Query the RAG system
+python cli.py --query "What are the details about BERT model?"
+```
 
-	**Output:** Resized images stored in the specified GCS location.
+For more detailed instructions, see [rag/README.md](rag/README.md).
 
-2. Another container prepares data for the RAG model, including tasks such as chunking, embedding, and populating the vector database.
+### 2. Data Pipeline
 
-## Data Pipeline Overview
+The data pipeline component handles:
+- Loading data from various sources
+- Data preprocessing and cleaning
+- Preparing data for model training and RAG indexing
 
-Data source for RAG: https://github.com/huggingface/transformers/tree/main/src/transformers/models
+**Key Files**:
+- `dataloader.py`: Handles data loading from multiple sources
+- `preprocess.py`: Data preprocessing utilities
+- `docker-shell.sh`: Script to run the data pipeline in Docker
 
+### 3. Models
 
-1. **`src/datapipeline/preprocess_cv.py`**
-   This script handles preprocessing on our 100GB dataset. It reduces the image sizes to 128x128 (a parameter that can be changed later) to enable faster iteration during processing. The preprocessed dataset is now reduced to 10GB and stored on GCS.
+The models component includes:
+- Model training scripts
+- Inference pipelines
+- Model evaluation utilities
 
-2. **`src/datapipeline/preprocess_rag.py`**
-   This script prepares the necessary data for setting up our vector database. It performs chunking, embedding, and loads the data into a vector database (ChromaDB).
+**Key Files**:
+- `train_model.py`: Training pipeline for models
+- `infer_model.py`: Inference and prediction scripts
+- `docker-shell.sh`: Script to run model training/inference in Docker
 
-3. **`src/datapipeline/Pipfile`**
-   We used the following packages to help with preprocessing:
-   - `special cheese package`
+### 4. Notebooks
 
-4. **`src/preprocessing/Dockerfile(s)`**
-   Our Dockerfiles follow standard conventions, with the exception of some specific modifications described in the Dockerfile/described below.
+Exploratory Data Analysis (EDA) notebooks for:
+- Understanding data distributions
+- Visualizing data patterns
+- Testing preprocessing approaches
 
+## Setup and Installation
 
-## Running Dockerfile
-Instructions for running the Dockerfile can be added here.
-To run Dockerfile - `Instructions here`
+### Prerequisites
 
-**Models container**
-- This container has scripts for model training, rag pipeline and inference
-- Instructions for running the model container - `Instructions here`
+- Docker and Docker Compose
+- Python 3.9+
+- Google Cloud Platform account (for deployment)
 
-**Notebooks/Reports**
-This folder contains code that is not part of container - for e.g: Application mockup, EDA, any 🔍 🕵️‍♀️ 🕵️‍♂️ crucial insights, reports or visualizations.
+### Getting Started
 
-----
+1. Clone the repository:
+```bash
+git clone https://github.com/kushal-chat/AC215_datadetox.git
+cd AC215_datadetox
+```
 
+2. Set up each component by navigating to its directory and following the respective README:
+   - For RAG system: `cd rag` and see `rag/README.md`
+   - For data pipeline: `cd src/datapipeline`
+   - For models: `cd src/models`
+
+3. Each component uses Docker for containerization. Use the provided `docker-shell.sh` scripts to build and run containers.
+
+## Usage
+
+### RAG System for Foundation Model Queries
+
+The RAG system is designed to help users get detailed information about foundation models:
+
+```bash
+cd rag
+./docker-shell.sh
+python cli.py --query "Tell me about GPT-3 architecture"
+```
+
+The system will retrieve relevant information from the indexed Hugging Face documentation and provide enriched responses.
+
+## Development
+
+Each component is containerized using Docker for consistency across development and production environments. Use the provided `docker-shell.sh` scripts in each directory to:
+
+- Build Docker images
+- Run containers with appropriate volume mounts
+- Execute component-specific commands
+
+## Contributing
+
+This is an academic project for Harvard AC215. For questions or contributions, please contact the team members.
+
+## License
+
+This project is developed for educational purposes as part of AC215 coursework.
