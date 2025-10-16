@@ -11,7 +11,4 @@ dependencies = [
     "openai==2.3.0",
     "fastmcp==2.12.4", 
     "huggingface-hub==0.35.3",
-    "chromadb==1.1.1", 
-    "fire==0.7.1",
-    "llama-index==0.14.4", 
 ]
