@@ -199,7 +199,7 @@ def query_rag(query: str, collection_name: str, n_results: int=5):
             embedding_function=DefaultEmbeddingFunction()
         )
         logger.info(f"Collection '{collection_name}' found")
-    except Exception as e:
+    except Exception:
         logger.error(f"Collection '{collection_name}' not found. Please initialise the database first.")
         return
 
