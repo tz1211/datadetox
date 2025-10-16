@@ -20,7 +20,7 @@ DataDetox is an AI-powered application designed to help users understand model l
     ![](img/ms1/wireframe_4.png)
 
 - Agentic Workflow (included in Milestone 1):
-    ![](img/ms1/workflow.png)
+    ![](img/ms1/workflow.svg)
 
 Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
