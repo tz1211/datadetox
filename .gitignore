@@ -66,3 +66,6 @@ docker-volumes/
 
 # ruff 
 .ruff_cache/
+
+# gcp credentials
+secrets/
