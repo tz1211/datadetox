@@ -33,11 +33,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Get Hugging Face token from environment
+# Get environment variables
 HF_TOKEN = os.getenv("HF_TOKEN", None)
+PROJECT_ID = os.getenv("PROJECT_ID", None)
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = os.getenv("CHROMA_PORT", 8000)
-PROJECT_ID = os.getenv("PROJECT_ID", None)
+GCP_CREDENTIALS_FILE = os.getenv("GCP_CREDENTIALS_FILE", None)
 
 ### Initialise Clients ### 
 async def init_db_client(host: str=CHROMA_HOST, port: int=CHROMA_PORT): 
@@ -61,7 +62,7 @@ async def init_gcp_client():
     Returns:
         GCPClient: initialised GCP client
     """
-    gcp_client = storage.Client.from_service_account_json(os.path.join(os.path.dirname(__file__), "..", "..", "secrets", "ac215-datadetox-ee330a056eed.json"))
+    gcp_client = storage.Client.from_service_account_json(os.path.join(os.path.dirname(__file__), "..", "..", "secrets", GCP_CREDENTIALS_FILE))
     logger.info("Initialised GCP client")
     return gcp_client 
 
