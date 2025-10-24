@@ -13,8 +13,8 @@ The CLI supports two main operations:
 """
 
 import os 
+import fire
 import logging
-import asyncio
 from tqdm import tqdm
 from dotenv import load_dotenv
 from google.cloud import storage
@@ -41,7 +41,7 @@ CHROMA_PORT = os.getenv("CHROMA_PORT", 8000)
 GCP_CREDENTIALS_FILE = os.getenv("GCP_CREDENTIALS_FILE", None)
 
 ### Initialise Clients ### 
-async def init_db_client(host: str=CHROMA_HOST, port: int=CHROMA_PORT): 
+def init_db_client(host: str=CHROMA_HOST, port: int=CHROMA_PORT): 
     """
     initialise ChromaDB client connection.
 
@@ -55,7 +55,7 @@ async def init_db_client(host: str=CHROMA_HOST, port: int=CHROMA_PORT):
     logger.info("Initialised ChromaDB client")
     return chroma_client 
 
-async def init_gcp_client(): 
+def init_gcp_client(): 
     """
     initialise GCP client connection.
 
@@ -68,7 +68,7 @@ async def init_gcp_client():
 
 ### Ingest Data ### 
 
-async def ingest_md_data(bucket_name: str, prefix: str): 
+def ingest_md_data(bucket_name: str, prefix: str): 
     """
     Ingest markdown files from a GCS bucket.
 
@@ -76,7 +76,7 @@ async def ingest_md_data(bucket_name: str, prefix: str):
         bucket_name (str): Name of the GCS bucket
         prefix (str): Prefix of the files to ingest
     """
-    gcp_client = await init_gcp_client()
+    gcp_client = init_gcp_client()
     try:
         bucket = gcp_client.bucket(bucket_name)
         blobs = bucket.list_blobs(prefix=prefix)
@@ -99,7 +99,7 @@ async def ingest_md_data(bucket_name: str, prefix: str):
     logger.info(f"Found {len(md_files)} files")
     return md_files
     
-async def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=32): 
+def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=32): 
     """
     Split markdown documents into overlapping chunks for embedding.
 
@@ -125,7 +125,7 @@ async def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap
             })
     return chunked_files
 
-async def create_db_collection(chroma_client, collection_name: str): 
+def create_db_collection(chroma_client, collection_name: str): 
     """
     Create a new ChromaDB collection, deleting existing one if it exists.
 
@@ -151,7 +151,7 @@ async def create_db_collection(chroma_client, collection_name: str):
     logger.info(f"Created collection: {collection_name}")
     return collection 
 
-async def populate_db_collection(collection: Collection, chunked_files: dict[list]): 
+def populate_db_collection(collection: Collection, chunked_files: dict[list]): 
     """
     Populate ChromaDB collection with chunked documents.
 
@@ -173,7 +173,7 @@ async def populate_db_collection(collection: Collection, chunked_files: dict[lis
             pbar.update(batch_end - i)
     logger.info(f"Populated collection: {collection.name}") 
 
-async def init_database(bucket_name: str, prefix: str, collection_name: str, chunk_size: int=256, chunk_overlap: int=32):
+def init_database(bucket_name: str, prefix: str, collection_name: str, chunk_size: int=256, chunk_overlap: int=32):
     """
     initialise the database with documents.
 
@@ -183,15 +183,15 @@ async def init_database(bucket_name: str, prefix: str, collection_name: str, chu
         chunk_size (int): Size of text chunks in characters
         chunk_overlap (int): Overlap between chunks in characters
     """
-    md_files = await ingest_md_data(bucket_name, prefix)
-    chunked_files = await chunk_md_data(md_files, chunk_size, chunk_overlap)
-    chroma_client = await init_db_client()
-    collection = await create_db_collection(chroma_client, collection_name)
-    await populate_db_collection(collection, chunked_files)
+    md_files = ingest_md_data(bucket_name, prefix)
+    chunked_files = chunk_md_data(md_files, chunk_size, chunk_overlap)
+    chroma_client = init_db_client()
+    collection = create_db_collection(chroma_client, collection_name)
+    populate_db_collection(collection, chunked_files)
     logger.info("Database initialisation complete")
     logger.info(f"Collection '{collection_name}' created with {collection.count()} entries")
 
-async def query_rag(query: str, collection_name: str, n_results: int=5):
+def query_rag(query: str, collection_name: str, n_results: int=5):
     """
     Query the existing database.
 
@@ -203,7 +203,7 @@ async def query_rag(query: str, collection_name: str, n_results: int=5):
     Returns:
         dict: Query results from ChromaDB
     """
-    chroma_client = await init_db_client()
+    chroma_client = init_db_client()
     try:
         collection = chroma_client.get_collection(
             name=collection_name,
@@ -222,7 +222,7 @@ async def query_rag(query: str, collection_name: str, n_results: int=5):
     return results
 
 @function_tool
-async def search_model_doc(
+def search_model_doc(
     init_db: bool = False,
     bucket_name: str = "datadetox",
     prefix: str = "model_doc",
@@ -250,14 +250,14 @@ async def search_model_doc(
             logger.error("bucket_name and prefix are required for database initialisation")
             return
         try:
-            await init_database(bucket_name, prefix, collection_name, chunk_size, chunk_overlap)
+            init_database(bucket_name, prefix, collection_name, chunk_size, chunk_overlap)
         except Exception as e:
             logger.error(f"Error accessing GCP bucket: {str(e)}")
             return
     elif query:
-        await query_rag(query, collection_name, n_results)
+        query_rag(query, collection_name, n_results)
     else:
         logger.error("Please specify either --init_db or --query")
 
 if __name__ == "__main__":
-    asyncio.run(search_model_doc())
+    fire.Fire(search_model_doc)
