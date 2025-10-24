@@ -5,7 +5,11 @@ services:
       dockerfile: Dockerfile
     environment:
       - OPENAI_API_KEY
-      # - VECTOR_STORE_ID
+      - HF_TOKEN  
+      - PROJECT_ID
+      - CHROMA_HOST
+      - CHROMA_PORT
+      - GCP_CREDENTIALS_FILE
     ports:
       # - "8000:8000"
       - "8080:8080"
