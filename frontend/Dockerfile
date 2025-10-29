@@ -1,14 +1,14 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy package files
-COPY from_loveable/package*.json ./
+# Copy package files from frontend directory
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY from_loveable/ ./
+COPY . ./
 
 # Build the app
 RUN npm run build
