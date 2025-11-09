@@ -13,28 +13,39 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: string;
+  metadata?: {
+    searchTerms?: string;
+    arxivId?: string;
+    stageTimes?: {
+      stage1?: number;
+      stage2?: number;
+      stage3?: number;
+      total?: number;
+    };
+  };
 }
 
 const exampleQueries = [
-  "Which models were trained on LAION-5B?",
-  "Show me the lineage of LLaVA v1.6",
-  "Are there any risks with using Vicuna-13B and PLIP?",
-  "What datasets does GPT-OSS-120B use?",
+  "Tell me about BERT models",
+  "Show me popular image classification models",
+  "What are the best text-to-image models?",
+  "Find datasets for sentiment analysis",
 ];
 
 const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Hello! I'm DataDetox AI. Ask me about model lineages, training datasets, or potential risks in AI models.",
+      text: "Hello! I'm DataDetox AI. Ask me about models and datasets on HuggingFace Hub!",
       isUser: false,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return;
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -44,19 +55,78 @@ const Chatbot = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const query = inputValue;
     setInputValue("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    // Add thinking indicator
+    const thinkingId = (Date.now() + 1).toString();
+    const thinkingMessage: Message = {
+      id: thinkingId,
+      text: "🤔 Analyzing your query...",
+      isUser: false,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages((prev) => [...prev, thinkingMessage]);
+
+    const startTime = Date.now();
+
+    try {
+      // Call the backend API
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiUrl}/client/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      // Remove thinking message
+      setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
+
       const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Based on my analysis of the model tree, I found several interesting connections. The model you're asking about has dependencies on multiple upstream models, some of which have been trained on datasets with known risks. Let me show you the lineage tree visualization below.",
+        id: (Date.now() + 2).toString(),
+        text: data.response || "I couldn't find information about that.",
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        metadata: {
+          searchTerms: data.search_terms,
+          arxivId: data.arxiv_id,
+          stageTimes: {
+            stage1: data.stage1_time,
+            stage2: data.stage2_time,
+            stage3: data.stage3_time,
+            total: parseFloat(totalTime),
+          },
+        },
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      toast.success(`Retrieved information in ${totalTime}s!`);
+    } catch (error) {
+      console.error('Error calling backend:', error);
+
+      // Remove thinking message
+      setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
+
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, aiMessage]);
-      toast.success("Model lineage analysis complete");
-    }, 1000);
+      setMessages((prev) => [...prev, errorMessage]);
+      toast.error("Failed to retrieve information");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExampleClick = (query: string) => {
@@ -97,6 +167,7 @@ const Chatbot = () => {
                       message={message.text}
                       isUser={message.isUser}
                       timestamp={message.timestamp}
+                      metadata={message.metadata}
                     />
                   ))}
                 </CardContent>
@@ -106,15 +177,21 @@ const Chatbot = () => {
                     <Input
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                      placeholder="Ask about model lineage, datasets, or risks..."
+                      onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSend()}
+                      placeholder="Ask about HuggingFace models and datasets..."
                       className="flex-1"
+                      disabled={isLoading}
                     />
-                    <Button 
+                    <Button
                       onClick={handleSend}
                       className="bg-gradient-accent hover:opacity-90 transition-opacity"
+                      disabled={isLoading}
                     >
-                      <Send className="w-4 h-4" />
+                      {isLoading ? (
+                        <span className="animate-spin">⏳</span>
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
