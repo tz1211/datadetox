@@ -69,3 +69,6 @@ docker-volumes/
 
 # local key file
 backend/*.json
+
+# secrets
+secrets/
