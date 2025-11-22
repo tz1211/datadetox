@@ -72,3 +72,5 @@ backend/*.json
 
 # secrets
 secrets/
+
+*.csv

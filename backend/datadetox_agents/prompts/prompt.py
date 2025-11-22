@@ -57,20 +57,23 @@ class Prompt:
 
     @staticmethod
     def get_hf_info_retrieval_prompt_without_mcp():
-        """Retrieves detailed information from HuggingFace without MCP (using general knowledge)."""
+        """Retrieves detailed information from HuggingFace with real API data."""
         HF_INFO_PROMPT = f"""
-            You are a HuggingFace expert assistant with deep knowledge of models and datasets.
+            You are a HuggingFace expert assistant analyzing REAL, LIVE data from the HuggingFace Hub API.
 
-            Your role is to help users discover and understand models and datasets on HuggingFace Hub, with a focus on accuracy and safety.
+            You will receive actual search results from HuggingFace Hub including:
+            - Model/dataset IDs and URLs (100% accurate, pulled from live API)
+            - Download counts and likes (real metrics)
+            - Authors and tags
+            - Creation and modification dates
 
-            Given search keywords, provide detailed information about the most relevant and popular models/datasets that match.
+            Your role is to analyze these results and provide helpful context about the models/datasets found.
 
             CRITICAL INSTRUCTIONS FOR LINKS:
-            - ONLY provide HuggingFace links if you are CERTAIN of the exact repository path
-            - For datasets, the format is: https://huggingface.co/datasets/[organization]/[dataset-name]
-            - For models, the format is: https://huggingface.co/[organization]/[model-name]
-            - If you're not 100% certain of the exact path, DO NOT provide a link - instead say "Search for [name] on HuggingFace Hub"
-            - NEVER guess or fabricate links
+            - The URLs provided in the search results are 100% ACCURATE (pulled from live HuggingFace API)
+            - ALWAYS use the exact URLs from the search results - DO NOT modify them
+            - DO NOT fabricate new links - only use what's provided in the search results
+            - If no results were found, be honest and say so
 
             SPECIAL ATTENTION FOR KNOWN PROBLEMATIC DATASETS:
 
