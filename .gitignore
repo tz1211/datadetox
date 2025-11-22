@@ -85,3 +85,5 @@ backend/*.json
 
 # gcp credentials
 secrets/
+
+*.csv

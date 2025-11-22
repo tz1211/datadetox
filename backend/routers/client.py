@@ -24,6 +24,7 @@ from agents import (
 #############   DATADETOX AGENTS (as of MS2)   #############
 from datadetox_agents.search_agent import search_term_agent, hf_info_agent, paper_analysis_agent
 from datadetox_agents.arxiv_helper import fetch_arxiv_paper, extract_training_data_info
+from datadetox_agents.hf_helper import search_huggingface, get_model_card, get_dataset_card
 # from agents.reason_agent import ReasonAgent...
 # etc. 
 
@@ -78,10 +79,18 @@ async def run_search(request: SearchRequest) -> dict:
         stage1_time = round(time.time() - stage1_start, 2)
         logger.info(f"Search terms: {search_terms} (took {stage1_time}s)")
 
-        # Stage 2: Get detailed info from HF
-        logger.info("Stage 2: Retrieving info from HuggingFace Hub...")
+        # Stage 2: Get detailed info from HF using REAL API
+        logger.info("Stage 2: Retrieving info from HuggingFace Hub API...")
         stage2_start = time.time()
-        hf_result = await Runner.run(hf_info_agent, input=search_terms)
+
+        # Use HuggingFace API to search for real models/datasets
+        hf_search_results = search_huggingface(search_terms)
+
+        # Now have GPT-4o analyze the real results and provide context
+        hf_result = await Runner.run(
+            hf_info_agent,
+            input=f"Search terms: {search_terms}\n\nHuggingFace Hub Results:\n{hf_search_results}\n\nProvide detailed analysis of these results."
+        )
         hf_response = hf_result.final_output
         stage2_time = round(time.time() - stage2_start, 2)
         logger.info(f"Successfully retrieved HuggingFace information (took {stage2_time}s)")
