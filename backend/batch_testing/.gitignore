@@ -1,7 +1,0 @@
-# Ignore CSV files in input and output directories
-input/*.csv
-output/*.csv
-
-# But keep the directories
-!input/.gitkeep
-!output/.gitkeep

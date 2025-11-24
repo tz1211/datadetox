@@ -1,10 +1,7 @@
-"""
-Helper functions to fetch and search HuggingFace Hub using direct API calls.
-Provides MCP-like functionality for HuggingFace models and datasets.
-"""
 import os
 import logging
 from typing import Optional, Dict, List
+from agents import function_tool
 from huggingface_hub import HfApi, ModelCard, DatasetCard
 from huggingface_hub.utils import HfHubHTTPError
 
@@ -13,7 +10,6 @@ logger = logging.getLogger(__name__)
 # Initialize HuggingFace API client
 hf_token = os.getenv("HF_TOKEN")
 hf_api = HfApi(token=hf_token)
-
 
 def search_models(
     query: str,
@@ -255,7 +251,7 @@ def format_search_results(models: List[Dict], datasets: List[Dict]) -> str:
 
     return "\n".join(output)
 
-
+@function_tool
 def search_huggingface(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
     """
     Search HuggingFace Hub for models and/or datasets.
@@ -270,6 +266,8 @@ def search_huggingface(query: str, include_models: bool = True, include_datasets
     """
     models = []
     datasets = []
+
+    logger.info("HuggingFace tool has been called.")
 
     if include_models:
         models = search_models(query, limit=3)
