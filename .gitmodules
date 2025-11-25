@@ -1,3 +1,0 @@
-[submodule "mcp/croissant"]
-	path = mcp/croissant
-	url = https://github.com/mlcommons/croissant.git

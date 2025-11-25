@@ -11,16 +11,16 @@ DataDetox is an AI-powered application designed to help users understand model l
 ## Project Wireframe & Workflow (Missing from Milestone 1)
 - Landing Page:
 
-    ![](img/ms1/wireframe_1.png)
-    ![](img/ms1/wireframe_2.png)
-    ![](img/ms1/wireframe_3.png)
+    ![](assets/img/ms1/wireframe_1.png)
+    ![](assets/img/ms1/wireframe_2.png)
+    ![](assets/img/ms1/wireframe_3.png)
 
 - Chatbot Page:
 
-    ![](img/ms1/wireframe_4.png)
+    ![](assets/img/ms1/wireframe_4.png)
 
 - Agentic Workflow (included in Milestone 1):
-    ![](img/ms1/workflow.svg)
+    ![](assets/img/ms1/workflow.svg)
 
 Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
@@ -114,9 +114,9 @@ This RAG CLI tool uses ChromaDB and LlamaIndex, provides functionality to:
 docker compose up -d rag_cli
 ```
 - You should see outputs like:
-![](img/ms2/docker_compose1.png)
+![](assets/img/ms2/docker_compose1.png)
 - Also inside your *docker desktop*, you should see the containers runnning like:
-![](img/ms2/docker_desktop.png)
+![](assets/img/ms2/docker_desktop.png)
 
 **STEP 2:** Go inside the rag_cli container with: 
 ```bash
@@ -141,9 +141,9 @@ uv run python rag_cli.py --init_db=True --input_data_path="data/model_doc" --col
 - `--chunk_overlap`: Overlap between chunks in characters (default: 32)
 
 You should see outputs like:
-![](img/ms2/init_db1.png)
-![](img/ms2/init_db2.png)
-![](img/ms2/init_db3.png) at the end of the output.
+![](assets/img/ms2/init_db1.png)
+![](assets/img/ms2/init_db2.png)
+![](assets/img/ms2/init_db3.png) at the end of the output.
 
 
 #### Query Database
@@ -160,8 +160,8 @@ uv run python rag_cli.py --query=<enter-your-query> --collection_name="hf_founda
 - `--n_results`: Number of results to return (default: 5)
 
 You should see outputs like:
-![](img/ms2/query1.png) 
-![](img/ms2/query2.png)
+![](assets/img/ms2/query1.png) 
+![](assets/img/ms2/query2.png)
 
 For more details, see [rag/README.md](rag/README.md).
 
