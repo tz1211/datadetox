@@ -35,8 +35,7 @@ jobs:
         working-directory: ./backend
         run: |
           uv run pytest tests/ -v \
-            --hypothesis-show-statistics \
-            --cov=backend_package_name_here \
+            --cov=routers \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             --cov-fail-under=50
