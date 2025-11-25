@@ -1,4 +1,5 @@
 """Hypothesis-based tests for search_neo4j module."""
+
 from __future__ import annotations
 
 from hypothesis import given, strategies as st
@@ -15,9 +16,12 @@ from routers.search.utils.search_neo4j import (
 )
 
 
-# Hypothesis strategies for generating test data
 def model_strategy() -> st.SearchStrategy[dict]:
-    """Generate valid HFModel data with optional fields."""
+    """
+    Generate valid HFModel data with optional fields.
+    Returns:
+        SearchStrategy
+    """
     return st.dictionaries(
         {
             "model_id": st.text(min_size=1, max_size=100),
@@ -34,7 +38,11 @@ def model_strategy() -> st.SearchStrategy[dict]:
 
 
 def dataset_strategy() -> st.SearchStrategy[dict]:
-    """Generate valid HFDataset data."""
+    """
+    Generate valid HFDataset data with optional fields.
+    Returns:
+        SearchStrategy
+    """
     return st.dictionaries(
         {
             "dataset_id": st.text(min_size=1, max_size=100),
@@ -213,4 +221,3 @@ def test_parse_node_invalid(invalid_data: dict) -> None:
     from routers.search.utils.search_neo4j import HFModel
     result = _parse_node(invalid_data, HFModel)
     assert result is None
-
