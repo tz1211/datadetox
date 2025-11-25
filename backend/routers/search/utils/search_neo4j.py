@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional, Union
 
 import neo4j
@@ -11,9 +12,11 @@ from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
 
-# Neo4j connection configuration
-NEO4J_URI = "neo4j://localhost:7687"
-NEO4J_AUTH = ("neo4j", "password")
+# Neo4j connection configuration from environment variables
+NEO4J_URI = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+NEO4J_AUTH = (NEO4J_USER, NEO4J_PASSWORD)
 RELATIONSHIP_FILTER = (
     "BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON"
 )
@@ -90,9 +93,9 @@ def _log_query_summary(summary: neo4j.QueryResultSummary, record_count: int) -> 
 
 @function_tool
 def search_models() -> HFNodes:
-    """Search for all models in the Neo4j database."""
+    """Search for all models in the Neo4j database (most downloaded)."""
     res, summary, _ = driver.execute_query(
-        "MATCH (n:Model) RETURN n",
+        "MATCH (n:Model) RETURN n ORDER BY n.downloads DESC",
         routing_=neo4j.RoutingControl.READ,
     )
 
@@ -108,9 +111,9 @@ def search_models() -> HFNodes:
 
 @function_tool
 def search_datasets() -> HFNodes:
-    """Search for all datasets in the Neo4j database."""
+    """Search for all datasets in the Neo4j database (most downloaded)."""
     res, summary, _ = driver.execute_query(
-        "MATCH (n:Dataset) RETURN n",
+        "MATCH (n:Dataset) RETURN n ORDER BY n.downloads DESC",
         routing_=neo4j.RoutingControl.READ,
     )
 
@@ -167,20 +170,30 @@ def search_query(model_id: str) -> HFGraphData:
         return _make_entity(node)
 
     node_entities = [_ensure_entity(node_dict) for node_dict in data.get("nodes", [])]
-    MAX_COUNT = 5
-    limited_nodes = node_entities[:MAX_COUNT]
+    MAX_COUNT = 1
+
+    # Limit tags to prevent context overflow
+    def _truncate_entity(entity: HFModel | HFDataset) -> HFModel | HFDataset:
+        if isinstance(entity, HFModel):
+            entity.tags = entity.tags[:5]  # Only keep first 5 tags
+        elif isinstance(entity, HFDataset):
+            entity.tags = entity.tags[:5]
+        return entity
+
+    limited_nodes = [_truncate_entity(node) for node in node_entities[:MAX_COUNT]]
 
     relationships = [
         HFRelationship(
-            source=_ensure_entity(src_dict),
+            source=_truncate_entity(_ensure_entity(src_dict)),
             relationship=rel_type,
-            target=_ensure_entity(tgt_dict),
+            target=_truncate_entity(_ensure_entity(tgt_dict)),
         )
         for src_dict, rel_type, tgt_dict in data["relationships"]
     ]
 
     _log_query_summary(summary, len(res))
-    return HFGraphData(
+
+    result = HFGraphData(
         nodes=HFNodes(nodes=limited_nodes),
         relationships=HFRelationships(relationships=relationships[:MAX_COUNT]),
     )

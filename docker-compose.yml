@@ -4,9 +4,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - OPENAI_API_KEY
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
+      - NEO4J_URI=${NEO4J_URI:-neo4j+s://1bc63778.databases.neo4j.io}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
     ports:
-      - "8080:8000"
+      - "8000:8000"
     volumes:
       - ./backend:/app
     tty: true
@@ -18,45 +22,22 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Frontend runs in browser, so it needs to connect to localhost:8000 (the host machine)
+        - VITE_API_URL=http://localhost:8000
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://backend:8080
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - datadetox-network
-
-  rag_cli:
-    build: 
-      context: ./rag
-      dockerfile: Dockerfile
+    # Mount source code for hot reload in development
     volumes:
-      - ./rag:/app
-      - ./data/model_doc:/app/data/model_doc
-    depends_on:
-      - chromadb
-    environment:
-      - HF_TOKEN
-    restart: unless-stopped
-    networks:
-      - datadetox-network
-    tty: true
-    stdin_open: true
-
-  chromadb:
-    image: chromadb/chroma:latest
-    ports:
-        - 8000:8000
-    volumes:
-        - ./data/chromadb:/chroma/chroma
-    environment:
-        - IS_PERSISTENT=TRUE
-        - ANONYMIZED_TELEMETRY=FALSE
-        - CHROMA_CORS_ALLOW_ORIGINS=["*"] # This is not recommended for production environments.
-    networks:
-      - datadetox-network
+      - ./frontend:/app
+      - /app/node_modules
 
   neo4j:
     image: neo4j:5.15-community
