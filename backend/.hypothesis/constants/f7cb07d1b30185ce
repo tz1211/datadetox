@@ -1,0 +1,4 @@
+# file: /Users/kushalchattopadhyay/Downloads/AI/AC215_datadetox/backend/routers/search/__init__.py
+# hypothesis_version: 6.148.2
+
+['httpcore.http11', 'neo4j.io', 'openai.agents', 'search_agent', 'uvicorn.access', 'uvicorn.error']

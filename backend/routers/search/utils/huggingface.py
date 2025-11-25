@@ -251,8 +251,7 @@ def format_search_results(models: List[Dict], datasets: List[Dict]) -> str:
 
     return "\n".join(output)
 
-@function_tool
-def search_huggingface(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
+def search_huggingface_function(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
     """
     Search HuggingFace Hub for models and/or datasets.
 
@@ -276,3 +275,11 @@ def search_huggingface(query: str, include_models: bool = True, include_datasets
         datasets = search_datasets(query, limit=3)
 
     return format_search_results(models, datasets)
+
+
+@function_tool
+def search_huggingface(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
+    """
+    Function tool version of search_huggingface.
+    """
+    return search_huggingface_function(query, include_models=include_models, include_datasets=include_datasets)

@@ -160,21 +160,27 @@ def search_query(model_id: str) -> HFGraphData:
         )
 
     data = res[0].data()
-    nodes = HFNodes(nodes=data["nodes"])
+
+    def _ensure_entity(node: HFModel | HFDataset | dict) -> HFModel | HFDataset:
+        if isinstance(node, (HFModel, HFDataset)):
+            return node
+        return _make_entity(node)
+
+    node_entities = [_ensure_entity(node_dict) for node_dict in data.get("nodes", [])]
+    MAX_COUNT = 5
+    limited_nodes = node_entities[:MAX_COUNT]
 
     relationships = [
         HFRelationship(
-            source=_make_entity(src_dict),
+            source=_ensure_entity(src_dict),
             relationship=rel_type,
-            target=_make_entity(tgt_dict),
+            target=_ensure_entity(tgt_dict),
         )
         for src_dict, rel_type, tgt_dict in data["relationships"]
     ]
 
-    MAX_COUNT = 5
-
     _log_query_summary(summary, len(res))
     return HFGraphData(
-        nodes=nodes[:MAX_COUNT],
+        nodes=HFNodes(nodes=limited_nodes),
         relationships=HFRelationships(relationships=relationships[:MAX_COUNT]),
     )

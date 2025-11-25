@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from hypothesis import given, strategies as st
 
 from routers.search.utils.search_neo4j import (
@@ -13,48 +15,46 @@ from routers.search.utils.search_neo4j import (
     HFGraphData,
     _make_entity,
     _parse_node,
+    search_query,
 )
 
 
 def model_strategy() -> st.SearchStrategy[dict]:
     """
-    Generate valid HFModel data with optional fields.
+    Generate valid HFModel data with optional fields
     Returns:
         SearchStrategy
     """
-    return st.dictionaries(
+    return st.fixed_dictionaries(
         {
             "model_id": st.text(min_size=1, max_size=100),
             "downloads": st.one_of(st.none(), st.integers(min_value=0)),
             "pipeline_tag": st.one_of(st.none(), st.text(min_size=1, max_size=50)),
             "created_at": st.one_of(st.none(), st.datetimes().map(lambda d: d.isoformat())),
             "library_name": st.one_of(st.none(), st.text(min_size=1, max_size=50)),
-            "url": st.one_of(st.none(), st.urls()),
+            "url": st.one_of(st.none(), st.text(min_size=1, max_size=100)),
             "likes": st.one_of(st.none(), st.integers(min_value=0)),
             "tags": st.lists(st.text(min_size=1, max_size=30), max_size=20),
         },
-        required_keys={"model_id"},
     )
 
 
 def dataset_strategy() -> st.SearchStrategy[dict]:
     """
-    Generate valid HFDataset data with optional fields.
+    Generate valid HFDataset data with optional fields
     Returns:
         SearchStrategy
     """
-    return st.dictionaries(
+    return st.fixed_dictionaries(
         {
             "dataset_id": st.text(min_size=1, max_size=100),
             "tags": st.lists(st.text(min_size=1, max_size=30), max_size=20),
-        },
-        required_keys={"dataset_id"},
+        }
     )
 
 
 @given(model_strategy())
 def test_hfmodel_creation(model_data: dict) -> None:
-    """Test that HFModel can be created from valid data."""
     model = HFModel(**model_data)
     assert model.model_id == model_data["model_id"]
     assert model.downloads == model_data.get("downloads")
@@ -63,7 +63,6 @@ def test_hfmodel_creation(model_data: dict) -> None:
 
 @given(dataset_strategy())
 def test_hfdataset_creation(dataset_data: dict) -> None:
-    """Test that HFDataset can be created from valid data."""
     dataset = HFDataset(**dataset_data)
     assert dataset.dataset_id == dataset_data["dataset_id"]
     assert dataset.tags == dataset_data["tags"]
@@ -73,7 +72,6 @@ def test_hfdataset_creation(dataset_data: dict) -> None:
 def test_hfrelationship_creation(
     source_data: dict, relationship: str, target_data: dict
 ) -> None:
-    """Test that HFRelationship can be created with models."""
     source = HFModel(**source_data)
     target = HFModel(**target_data)
     rel = HFRelationship(
@@ -94,7 +92,6 @@ def test_hfrelationship_creation(
 def test_hfrelationship_mixed_types(
     source_data: dict, relationship: str, target_data: dict
 ) -> None:
-    """Test that HFRelationship works with mixed model/dataset types."""
     source = (
         HFModel(**source_data)
         if "model_id" in source_data
@@ -116,7 +113,6 @@ def test_hfrelationship_mixed_types(
 
 @given(st.lists(model_strategy(), max_size=10))
 def test_hfnodes_creation(models_data: list[dict]) -> None:
-    """Test that HFNodes can be created from a list of models."""
     models = [HFModel(**data) for data in models_data]
     nodes = HFNodes(nodes=models)
     assert len(nodes.nodes) == len(models)
@@ -134,7 +130,6 @@ def test_hfnodes_creation(models_data: list[dict]) -> None:
     )
 )
 def test_hfrelationships_creation(relationships_data: list[tuple[dict, str, dict]]) -> None:
-    """Test that HFRelationships can be created from relationship data."""
     relationships = [
         HFRelationship(
             source=HFModel(**src),
@@ -149,7 +144,6 @@ def test_hfrelationships_creation(relationships_data: list[tuple[dict, str, dict
 
 @given(model_strategy(), dataset_strategy())
 def test_hfgraphdata_creation(model_data: dict, dataset_data: dict) -> None:
-    """Test that HFGraphData can be created with nodes and relationships."""
     models = [HFModel(**model_data)]
     datasets = [HFDataset(**dataset_data)]
     nodes = HFNodes(nodes=models + datasets)
@@ -170,7 +164,7 @@ def test_hfgraphdata_creation(model_data: dict, dataset_data: dict) -> None:
 
 @given(model_strategy())
 def test_make_entity_model(model_data: dict) -> None:
-    """Test _make_entity correctly creates HFModel from dict."""
+    """Test _make_entity correctly creates HFModel from dict"""
     entity = _make_entity(model_data)
     assert isinstance(entity, HFModel)
     assert entity.model_id == model_data["model_id"]
@@ -178,7 +172,7 @@ def test_make_entity_model(model_data: dict) -> None:
 
 @given(dataset_strategy())
 def test_make_entity_dataset(dataset_data: dict) -> None:
-    """Test _make_entity correctly creates HFDataset from dict."""
+    """Test _make_entity correctly creates HFDataset from dict"""
     entity = _make_entity(dataset_data)
     assert isinstance(entity, HFDataset)
     assert entity.dataset_id == dataset_data["dataset_id"]
@@ -186,7 +180,7 @@ def test_make_entity_dataset(dataset_data: dict) -> None:
 
 @given(st.dictionaries(st.text(), st.text()))
 def test_make_entity_invalid(invalid_data: dict) -> None:
-    """Test _make_entity raises ValueError for invalid data."""
+    """Test _make_entity raises ValueError for invalid data"""
     if "model_id" not in invalid_data and "dataset_id" not in invalid_data:
         try:
             _make_entity(invalid_data)
@@ -197,7 +191,7 @@ def test_make_entity_invalid(invalid_data: dict) -> None:
 
 @given(model_strategy())
 def test_parse_node_model(model_data: dict) -> None:
-    """Test _parse_node correctly parses model data."""
+    """Test _parse_node correctly parses model data"""
     from routers.search.utils.search_neo4j import HFModel
     result = _parse_node(model_data, HFModel)
     assert result is not None
@@ -207,7 +201,7 @@ def test_parse_node_model(model_data: dict) -> None:
 
 @given(dataset_strategy())
 def test_parse_node_dataset(dataset_data: dict) -> None:
-    """Test _parse_node correctly parses dataset data."""
+    """Test _parse_node correctly parses dataset data"""
     from routers.search.utils.search_neo4j import HFDataset
     result = _parse_node(dataset_data, HFDataset)
     assert result is not None
@@ -217,7 +211,7 @@ def test_parse_node_dataset(dataset_data: dict) -> None:
 
 @given(st.dictionaries(st.text(), st.integers()))
 def test_parse_node_invalid(invalid_data: dict) -> None:
-    """Test _parse_node returns None for invalid data."""
+    """Test _parse_node returns None for invalid data"""
     from routers.search.utils.search_neo4j import HFModel
     result = _parse_node(invalid_data, HFModel)
     assert result is None
