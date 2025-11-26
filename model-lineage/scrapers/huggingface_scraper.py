@@ -405,101 +405,31 @@ class HuggingFaceScraper:
     ) -> Optional[str]:
         """
         Determine relationship type by checking the base model's siblings API.
-        The HuggingFace API provides sibling models categorized by type.
+        Falls back to name-based heuristics if the endpoint cannot classify.
         """
         try:
-            # Use HuggingFace API to get siblings/related models
-            # The siblings endpoint shows finetuned, adapters, merges, quantizations
             siblings_url = f"https://huggingface.co/api/models/{base_model}/siblings"
-
             headers = {}
             if settings.HF_TOKEN:
                 headers["Authorization"] = f"Bearer {settings.HF_TOKEN}"
 
             response = requests.get(siblings_url, headers=headers, timeout=10)
-
             if response.status_code == 200:
                 siblings_data = response.json()
-
-                # Check each category for the current model
-                # Format: Direct lists
-                for category in ["finetuned", "adapters", "merges", "quantizations"]:
+                for category in ("finetuned", "adapters", "merges", "quantizations"):
                     category_models = siblings_data.get(category, [])
-                    if isinstance(category_models, list):
-                        for sibling in category_models:
-                            sibling_id = (
-                                sibling.get("id")
-                                if isinstance(sibling, dict)
-                                else sibling
-                            )
-                            if sibling_id == model_id:
-                                return category
+                    if not isinstance(category_models, list):
+                        continue
+                    for sibling in category_models:
+                        sibling_id = (
+                            sibling.get("id") if isinstance(sibling, dict) else sibling
+                        )
+                        if sibling_id == model_id:
+                            return category
+        except Exception as exc:
+            logger.debug("Error getting relationship type from tree: %s", exc)
 
-                # If not found in siblings, infer from name
-                return self._infer_relationship_type_from_name(model_id, base_model)
-            else:
-                # Fallback: try to parse from the model page HTML
-                return self._get_relationship_type_from_html(model_id, base_model)
-
-        except Exception as e:
-            logger.debug(f"Error getting relationship type from tree: {e}")
-            return self._infer_relationship_type_from_name(model_id, base_model)
-
-    def _get_relationship_type_from_html(
-        self, model_id: str, base_model: str
-    ) -> Optional[str]:
-        """
-        Fallback: Parse HTML to find relationship type in model tree section.
-        """
-        try:
-            # Fetch the base model's page
-            base_model_url = f"https://huggingface.co/{base_model}"
-            headers = {}
-            if settings.HF_TOKEN:
-                headers["Authorization"] = f"Bearer {settings.HF_TOKEN}"
-
-            response = requests.get(base_model_url, headers=headers, timeout=10)
-
-            if response.status_code == 200:
-                # Look for model tree JSON data embedded in the page
-                # HuggingFace often embeds JSON data in script tags
-                # Try to find embedded JSON with model tree data
-                json_match = re.search(
-                    r'<script[^>]*id="model-tree-data"[^>]*>(.*?)</script>',
-                    response.text,
-                    re.DOTALL,
-                )
-                if json_match:
-                    try:
-                        tree_data = json.loads(json_match.group(1))
-                        for category in [
-                            "finetuned",
-                            "adapters",
-                            "merges",
-                            "quantizations",
-                        ]:
-                            models = tree_data.get(category, [])
-                            if any(
-                                m.get("id") == model_id or m == model_id for m in models
-                            ):
-                                return category
-                    except json.JSONDecodeError:
-                        pass
-
-                model_id_short = model_id.split("/")[-1]
-                for category in ["Finetuned", "Adapters", "Merges", "Quantizations"]:
-                    pattern = rf"{category}.*?{re.escape(model_id_short)}"
-                    if re.search(pattern, response.text, re.IGNORECASE | re.DOTALL):
-                        return category.lower()
-
-                # If not found, infer from name
-                return self._infer_relationship_type_from_name(model_id, base_model)
-            else:
-                return self._infer_relationship_type_from_name(model_id, base_model)
-
-        except Exception as e:
-            logger.debug(f"Error parsing HTML: {e}")
-            return self._infer_relationship_type_from_name(model_id, base_model)
+        return self._infer_relationship_type_from_name(model_id, base_model)
 
     def _infer_relationship_type_from_name(
         self, model_id: str, base_model: str
