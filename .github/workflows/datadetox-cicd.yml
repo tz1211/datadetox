@@ -2,9 +2,9 @@ name: datadetox-cicd
 
 on:
   push:
-    branches: [main, develop, terry/milestone4, kushal-multiagentflow]
+    branches: [main, develop, "milestone*"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "milestone*"]
 
 jobs:
   test:
