@@ -8,6 +8,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+interface Neo4jNode {
+  model_id: string;
+  downloads?: number;
+  pipeline_tag?: string | null;
+  created_at?: string;
+  library_name?: string;
+  url?: string;
+  likes?: number;
+  tags?: string[];
+}
+
+interface Neo4jRelationship {
+  source: Neo4jNode;
+  relationship: string;
+  target: Neo4jNode;
+}
+
+interface Neo4jData {
+  nodes: {
+    nodes: Neo4jNode[];
+  };
+  relationships: {
+    relationships: Neo4jRelationship[];
+  };
+}
+
 interface Message {
   id: string;
   text: string;
@@ -23,6 +49,7 @@ interface Message {
       total?: number;
     };
   };
+  neo4jData?: Neo4jData;
 }
 
 const exampleQueries = [
@@ -43,6 +70,7 @@ const Chatbot = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [latestNeo4jData, setLatestNeo4jData] = useState<Neo4jData | null>(null);
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -103,9 +131,19 @@ const Chatbot = () => {
             total: parseFloat(totalTime),
           },
         },
+        neo4jData: data.neo4j_data, // Attach Neo4j graph data if available
       };
       setMessages((prev) => [...prev, aiMessage]);
-      toast.success(`Retrieved information in ${totalTime}s!`);
+
+      // Update the latest Neo4j data for the ModelTree visualization
+      if (data.neo4j_data) {
+        setLatestNeo4jData(data.neo4j_data);
+        const nodeCount = data.neo4j_data?.nodes?.nodes?.length || 0;
+        const relCount = data.neo4j_data?.relationships?.relationships?.length || 0;
+        toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
+      } else {
+        toast.success(`Retrieved information in ${totalTime}s!`);
+      }
     } catch (error) {
       console.error('Error calling backend:', error);
 
@@ -132,7 +170,7 @@ const Chatbot = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-6 pt-24 pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
@@ -155,7 +193,7 @@ const Chatbot = () => {
                     Chat with DataDetox AI
                   </CardTitle>
                 </CardHeader>
-                
+
                 <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
                   {messages.map((message) => (
                     <ChatMessage
@@ -215,7 +253,7 @@ const Chatbot = () => {
               </Card>
 
               {/* Model Tree Visualization */}
-              <ModelTree />
+              <ModelTree neo4jData={latestNeo4jData} />
             </div>
           </div>
         </div>
