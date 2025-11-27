@@ -80,7 +80,8 @@ const MOCK_NEO4J_DATA = {
 const USE_MOCK_DATA = false; // Set to false when using real backend
 
 interface Neo4jNode {
-  model_id: string;
+  model_id?: string;  // For models
+  dataset_id?: string;  // For datasets
   downloads?: number;
   pipeline_tag?: string | null;
   created_at?: string;
@@ -110,6 +111,14 @@ interface ModelTreeProps {
   neo4jData: Neo4jData | null;
 }
 
+interface DatasetInfo {
+  id: string;
+  url?: string;
+  downloads?: number;
+  likes?: number;
+  relationship?: string;
+}
+
 interface TreeNode {
   name: string;
   attributes?: {
@@ -118,9 +127,15 @@ interface TreeNode {
     pipeline_tag?: string | null;
     url?: string;
     relationship?: string; // Relationship type from parent
+    datasetsJson?: string; // JSON stringified array of datasets
   };
   children?: TreeNode[];
 }
+
+// Helper function to get the ID from either a model or dataset
+const getNodeId = (node: Neo4jNode): string => {
+  return node.model_id || node.dataset_id || 'unknown';
+};
 
 // Build hierarchical tree from Neo4j nodes and relationships
 // Relationship semantics: source -> RELATIONSHIP -> target means "source is RELATIONSHIP from target"
@@ -129,23 +144,53 @@ const buildTreeFromRelationships = (
   nodes: Neo4jNode[],
   relationships: Neo4jRelationship[],
   queriedModelId?: string
-): TreeNode[] => {
-  if (nodes.length === 0) return [];
+): { trees: TreeNode[], hasDatasets: boolean } => {
+  if (nodes.length === 0) return { trees: [], hasDatasets: false };
 
-  // Create a map of model_id to node data
+  // Separate models and datasets
+  const models = nodes.filter(n => n.model_id);
+  const datasets = nodes.filter(n => n.dataset_id && !n.model_id);
+
+  // Create a map of ID to node data (models only for tree structure)
   const nodeMap = new Map<string, Neo4jNode>();
-  nodes.forEach(node => nodeMap.set(node.model_id, node));
+  models.forEach(node => nodeMap.set(getNodeId(node), node));
 
-  // Build adjacency lists
+  // Map of model ID to its associated datasets
+  const modelDatasets = new Map<string, DatasetInfo[]>();
+
+  // Build adjacency lists for models only
   // parentMap: child -> Set<parent> (upstream dependencies)
   // childrenMap: parent -> Map<child, relationship> (downstream dependents)
   const parentMap = new Map<string, Map<string, string>>(); // child -> Map<parent, relationship>
   const childrenMap = new Map<string, Map<string, string>>(); // parent -> Map<child, relationship>
 
   relationships.forEach(rel => {
-    const sourceId = rel.source.model_id;
-    const targetId = rel.target.model_id;
+    const sourceId = getNodeId(rel.source);
+    const targetId = getNodeId(rel.target);
     const relType = rel.relationship;
+
+    // Check if this is a model-dataset relationship
+    const sourceIsModel = rel.source.model_id;
+    const targetIsDataset = rel.target.dataset_id && !rel.target.model_id;
+
+    if (sourceIsModel && targetIsDataset) {
+      // Model -> Dataset relationship (e.g., TRAINED_ON)
+      // Attach dataset to model
+      if (!modelDatasets.has(sourceId)) {
+        modelDatasets.set(sourceId, []);
+      }
+      modelDatasets.get(sourceId)!.push({
+        id: targetId,
+        url: rel.target.url,
+        downloads: rel.target.downloads,
+        likes: rel.target.likes,
+        relationship: relType
+      });
+      return; // Don't add to tree structure
+    }
+
+    // Model-to-model relationships only
+    if (!sourceIsModel || targetIsDataset) return;
 
     // source -> RELATIONSHIP -> target means target is the parent
     // Store parent relationship
@@ -162,8 +207,10 @@ const buildTreeFromRelationships = (
   });
 
   // Find the root: the node with no parents (highest in the hierarchy)
-  const rootCandidates = nodes.filter(node => {
-    const hasNoParent = !parentMap.has(node.model_id) || parentMap.get(node.model_id)!.size === 0;
+  // Only consider models for root candidates
+  const rootCandidates = models.filter(node => {
+    const nodeId = getNodeId(node);
+    const hasNoParent = !parentMap.has(nodeId) || parentMap.get(nodeId)!.size === 0;
     return hasNoParent;
   });
 
@@ -171,14 +218,31 @@ const buildTreeFromRelationships = (
   // The queried model is only used for highlighting purposes
   let rootNode: Neo4jNode | undefined;
   if (rootCandidates.length > 0) {
-    // Use the first root candidate (highest level parent)
-    rootNode = rootCandidates[0];
+    // Prefer models over datasets when selecting root
+    // Datasets without parents are typically training data, not the top of the model hierarchy
+    const modelRoots = rootCandidates.filter(n => n.model_id); // Models have model_id
+    const datasetRoots = rootCandidates.filter(n => n.dataset_id && !n.model_id); // Pure datasets
+
+    if (modelRoots.length > 0) {
+      // Use the model with the most children (most influential in the tree)
+      rootNode = modelRoots.sort((a, b) => {
+        const aChildren = childrenMap.get(getNodeId(a))?.size || 0;
+        const bChildren = childrenMap.get(getNodeId(b))?.size || 0;
+        return bChildren - aChildren;
+      })[0];
+    } else {
+      // If only datasets available, use the first one
+      rootNode = datasetRoots[0];
+    }
   } else if (nodes.length > 0) {
     // Fallback to first node if no clear root
     rootNode = nodes[0];
   }
 
-  if (!rootNode) return [];
+  if (!rootNode) return { trees: [], hasDatasets: false };
+
+  // Check if any model has datasets
+  const hasAnyDatasets = modelDatasets.size > 0;
 
   // Build tree recursively from root downwards
   const buildNode = (modelId: string, relationship?: string, visited = new Set<string>()): TreeNode | null => {
@@ -188,14 +252,18 @@ const buildTreeFromRelationships = (
     const nodeData = nodeMap.get(modelId);
     if (!nodeData) return null;
 
+    // Get datasets associated with this model
+    const datasets = modelDatasets.get(modelId) || [];
+
     const treeNode: TreeNode = {
-      name: nodeData.model_id,
+      name: getNodeId(nodeData),
       attributes: {
         downloads: nodeData.downloads,
         likes: nodeData.likes,
         pipeline_tag: nodeData.pipeline_tag,
         url: nodeData.url,
         relationship: relationship, // Relationship from parent to this node
+        datasetsJson: datasets.length > 0 ? JSON.stringify(datasets) : undefined,
       },
     };
 
@@ -210,8 +278,11 @@ const buildTreeFromRelationships = (
     return treeNode;
   };
 
-  const tree = buildNode(rootNode.model_id);
-  return tree ? [tree] : [];
+  const tree = buildNode(getNodeId(rootNode));
+  return {
+    trees: tree ? [tree] : [],
+    hasDatasets: hasAnyDatasets
+  };
 };
 
 // Custom node rendering for the tree
@@ -221,6 +292,9 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
   const relationship = attrs.relationship;
   const isQueriedModel = modelName === queriedModelId;
 
+  // Parse datasets if available
+  const datasets: DatasetInfo[] = attrs.datasetsJson ? JSON.parse(attrs.datasetsJson) : [];
+
   const handleClick = () => {
     if (attrs.url) {
       window.open(attrs.url, '_blank', 'noopener,noreferrer');
@@ -229,7 +303,7 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
 
   // Split model name into lines if too long
   const maxCharsPerLine = 20;
-  const nameParts = modelName.split('/');
+  const nameParts = (modelName || 'Unknown').split('/');
   const lines: string[] = [];
 
   nameParts.forEach((part, idx) => {
@@ -296,7 +370,7 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
         style={{ transition: 'all 0.2s' }}
       />
 
-      {/* Glow effect for queried model */}
+      {/* Glow effect for queried model or dataset indicator */}
       {isQueriedModel && (
         <rect
           x={-75}
@@ -311,6 +385,117 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
           style={{ filter: 'blur(4px)' }}
         />
       )}
+
+      {/* Floating datasets - positioned below the model */}
+      {datasets.map((dataset, idx) => {
+        const datasetX = -65; // Center below the model card
+        const datasetY = cardY + cardHeight + 20 + (idx * 85); // Position below model card
+        const datasetWidth = 130;
+        const datasetHeight = 75;
+
+        const datasetNameParts = dataset.id.split('/');
+        const datasetShortName = datasetNameParts[datasetNameParts.length - 1] || dataset.id;
+
+        return (
+          <g key={dataset.id}>
+            {/* Connection line from model to dataset */}
+            <line
+              x1={0} // Center bottom of model card
+              y1={cardY + cardHeight}
+              x2={datasetX + datasetWidth / 2}
+              y2={datasetY}
+              stroke="#64748b"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              opacity={0.5}
+            />
+
+            {/* Dataset card */}
+            <rect
+              x={datasetX}
+              y={datasetY}
+              width={datasetWidth}
+              height={datasetHeight}
+              rx={6}
+              fill="white"
+              stroke="#64748b"
+              strokeWidth={1.5}
+              onClick={() => dataset.url && window.open(dataset.url, '_blank', 'noopener,noreferrer')}
+              style={{ cursor: dataset.url ? 'pointer' : 'default', transition: 'all 0.2s' }}
+              className="dataset-card"
+            />
+
+            {/* "Dataset" label in top left corner */}
+            <text
+              fill="#64748b"
+              strokeWidth="0"
+              x={datasetX + 6}
+              y={datasetY + 12}
+              fontSize="7"
+              fontWeight="600"
+              style={{ pointerEvents: 'none' }}
+            >
+              Dataset
+            </text>
+
+            {/* Dataset name */}
+            <text
+              fill="#334155"
+              strokeWidth="0"
+              x={datasetX + datasetWidth / 2}
+              y={datasetY + 32}
+              fontSize="9"
+              fontWeight="600"
+              textAnchor="middle"
+              style={{ pointerEvents: 'none' }}
+            >
+              {datasetShortName.length > 15 ? datasetShortName.substring(0, 15) + '...' : datasetShortName}
+            </text>
+
+            {/* Relationship label */}
+            {dataset.relationship && (
+              <text
+                fill="#64748b"
+                strokeWidth="0"
+                x={datasetX + datasetWidth / 2}
+                y={datasetY + 45}
+                fontSize="7"
+                textAnchor="middle"
+                opacity={0.8}
+                style={{ pointerEvents: 'none' }}
+              >
+                {dataset.relationship.replace(/_/g, ' ')}
+              </text>
+            )}
+
+            {/* Stats */}
+            {(dataset.downloads !== undefined || dataset.likes !== undefined) && (
+              <g transform={`translate(${datasetX + datasetWidth / 2}, ${datasetY + 58})`}>
+                {dataset.downloads !== undefined && (
+                  <text fill="#64748b" strokeWidth="0" x="-25" y="0" fontSize="7" style={{ pointerEvents: 'none' }}>
+                    ↓ {(dataset.downloads / 1000).toFixed(0)}k
+                  </text>
+                )}
+                {dataset.likes !== undefined && (
+                  <text fill="#64748b" strokeWidth="0" x="10" y="0" fontSize="7" style={{ pointerEvents: 'none' }}>
+                    ♥ {dataset.likes}
+                  </text>
+                )}
+              </g>
+            )}
+
+            {/* External link icon for dataset */}
+            {dataset.url && (
+              <g transform={`translate(${datasetX + datasetWidth - 15}, ${datasetY + 12})`}>
+                <circle r="7" fill="#64748b" opacity="0.9" />
+                <text fill="white" strokeWidth="0" x="0" y="2.5" fontSize="7" textAnchor="middle" style={{ pointerEvents: 'none' }}>
+                  ↗
+                </text>
+              </g>
+            )}
+          </g>
+        );
+      })}
 
       {/* Model name (multi-line with full name) */}
       <g>
@@ -346,25 +531,49 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
         </text>
       )}
 
-      {/* Stats row */}
+      {/* Stats row - centered with equal spacing */}
       <g transform={`translate(0, ${cardY + cardHeight - 15})`}>
-        {attrs.downloads !== undefined && (
-          <>
-            <text fill="#94a3b8" strokeWidth="0" x="-30" y="0" fontSize="9" textAnchor="start" style={{ pointerEvents: 'none' }}>
-              ↓ {(attrs.downloads / 1000000).toFixed(1)}M
-            </text>
-          </>
-        )}
-        {attrs.likes !== undefined && (
-          <text fill="#f472b6" strokeWidth="0" x="18" y="0" fontSize="9" textAnchor="start" style={{ pointerEvents: 'none' }}>
-            ♥ {attrs.likes}
-          </text>
-        )}
+        {(() => {
+          const downloadsText = attrs.downloads !== undefined
+            ? attrs.downloads < 100000
+              ? attrs.downloads.toLocaleString()
+              : `${(attrs.downloads / 1000000).toFixed(1)}M`
+            : null;
+          const likesText = attrs.likes !== undefined ? attrs.likes.toString() : null;
+
+          if (downloadsText && likesText) {
+            // Equal spacing on both sides - gap of 12px between them
+            const gap = 12;
+            return (
+              <>
+                <text fill="#94a3b8" strokeWidth="0" x={-gap / 2} y="0" fontSize="9" textAnchor="end" style={{ pointerEvents: 'none' }}>
+                  ↓ {downloadsText}
+                </text>
+                <text fill="#f472b6" strokeWidth="0" x={gap / 2} y="0" fontSize="9" textAnchor="start" style={{ pointerEvents: 'none' }}>
+                  ♥ {likesText}
+                </text>
+              </>
+            );
+          } else if (downloadsText) {
+            return (
+              <text fill="#94a3b8" strokeWidth="0" x="0" y="0" fontSize="9" textAnchor="middle" style={{ pointerEvents: 'none' }}>
+                ↓ {downloadsText}
+              </text>
+            );
+          } else if (likesText) {
+            return (
+              <text fill="#f472b6" strokeWidth="0" x="0" y="0" fontSize="9" textAnchor="middle" style={{ pointerEvents: 'none' }}>
+                ♥ {likesText}
+              </text>
+            );
+          }
+          return null;
+        })()}
       </g>
 
-      {/* External link icon */}
+      {/* External link icon - moved down to avoid edge overlap */}
       {attrs.url && (
-        <g transform={`translate(60, ${cardY + 8})`}>
+        <g transform={`translate(60, ${cardY + cardHeight - 15})`}>
           <circle r="9" fill={isQueriedModel ? "#fbbf24" : "#3b82f6"} opacity="0.9" />
           <text fill={isQueriedModel ? "#1e293b" : "white"} strokeWidth="0" x="0" y="3.5" fontSize="9" textAnchor="middle" style={{ pointerEvents: 'none' }}>
             ↗
@@ -398,7 +607,7 @@ const Neo4jModelNode = ({ node }: { node: Neo4jNode }) => {
               rel="noopener noreferrer"
               className="text-sm font-medium hover:text-secondary transition-colors"
             >
-              {node.model_id}
+              {getNodeId(node)}
             </a>
             <ExternalLink className="w-3 h-3 text-muted-foreground" />
           </div>
@@ -461,25 +670,29 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
   const queriedModelId = effectiveData.queried_model_id || nodes[0]?.model_id;
 
   // Build tree structure from relationships
-  const treeData = useMemo(() => {
-    const trees = buildTreeFromRelationships(nodes, relationships, queriedModelId);
+  const { treeData, hasDatasets } = useMemo(() => {
+    const result = buildTreeFromRelationships(nodes, relationships, queriedModelId);
+    const trees = result.trees;
 
     if (trees.length === 1) {
-      return trees[0];
+      return { treeData: trees[0], hasDatasets: result.hasDatasets };
     } else if (trees.length > 1) {
       // Multiple trees - shouldn't happen with the new logic, but handle it
-      return trees[0];
+      return { treeData: trees[0], hasDatasets: result.hasDatasets };
     }
 
     // No relationships - return first node
     return {
-      name: nodes[0]?.model_id || "No models",
-      attributes: {
-        downloads: nodes[0]?.downloads,
-        likes: nodes[0]?.likes,
-        pipeline_tag: nodes[0]?.pipeline_tag,
-        url: nodes[0]?.url,
+      treeData: {
+        name: nodes[0] ? getNodeId(nodes[0]) : "No models",
+        attributes: {
+          downloads: nodes[0]?.downloads,
+          likes: nodes[0]?.likes,
+          pipeline_tag: nodes[0]?.pipeline_tag,
+          url: nodes[0]?.url,
+        },
       },
+      hasDatasets: result.hasDatasets
     };
   }, [nodes, relationships, queriedModelId]);
 
@@ -511,6 +724,10 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
                 filter: brightness(1.2);
                 transition: filter 0.3s ease;
               }
+              .rd3t-node:hover .dataset-card {
+                filter: brightness(1.3);
+                transition: filter 0.3s ease;
+              }
               .relationship-label {
                 opacity: 0;
                 transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -530,9 +747,9 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
                 orientation="vertical"
                 pathFunc="step"
                 translate={{ x: 400, y: 60 }}
-                nodeSize={{ x: 180, y: 160 }}
+                nodeSize={hasDatasets ? { x: 200, y: 180 } : { x: 180, y: 160 }}
                 renderCustomNodeElement={renderNodeWithContext}
-                separation={{ siblings: 1.2, nonSiblings: 1.5 }}
+                separation={hasDatasets ? { siblings: 1.1, nonSiblings: 1.2 } : { siblings: 1.0, nonSiblings: 1.1 }}
                 zoomable
                 collapsible={false}
                 initialDepth={undefined}
@@ -546,15 +763,21 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
             <div className="border-t border-slate-800 bg-slate-900/50 px-4 py-2">
               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                 <span className="font-semibold text-slate-400">{relationships.length} relationships:</span>
-                {relationships.slice(0, 5).map((rel: Neo4jRelationship, index: number) => (
-                  <div key={index} className="flex items-center gap-1.5">
-                    <span className="font-mono text-[10px] truncate max-w-[100px]">{rel.source.model_id.split('/').pop()}</span>
-                    <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
-                      {rel.relationship}
-                    </Badge>
-                    <span className="font-mono text-[10px] truncate max-w-[100px]">{rel.target.model_id.split('/').pop()}</span>
-                  </div>
-                ))}
+                {relationships.slice(0, 5).map((rel: Neo4jRelationship, index: number) => {
+                  const sourceId = getNodeId(rel.source);
+                  const targetId = getNodeId(rel.target);
+                  const sourceName = sourceId.split('/').pop() || 'Unknown';
+                  const targetName = targetId.split('/').pop() || 'Unknown';
+                  return (
+                    <div key={index} className="flex items-center gap-1.5">
+                      <span className="font-mono text-[10px] truncate max-w-[100px]">{sourceName}</span>
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                        {rel.relationship}
+                      </Badge>
+                      <span className="font-mono text-[10px] truncate max-w-[100px]">{targetName}</span>
+                    </div>
+                  );
+                })}
                 {relationships.length > 5 && (
                   <span className="text-[10px] text-slate-500">+{relationships.length - 5} more</span>
                 )}
