@@ -60,10 +60,10 @@ Full cloud deployment and scalability considerations will be addressed in **Mile
      - **Solution Architecture:** High-level overview of system components and their interactions (e.g., data flow, APIs, frontend, model).
      - **Technical Architecture:** Technologies, frameworks, and design patterns used, and how they support your overall system design.
 
-2. [ ] **APIs and Frontend Implementation**
+2. [x] **APIs and Frontend Implementation**
    - Source code for both the backend APIs and the frontend interface, showing full end-to-end functionality.
    - **Should include:**
-     - [ ] **README:** Setup instructions, environment configuration, and usage guidelines (how to run locally).
+     - [x] **README:** Setup instructions, environment configuration, and usage guidelines (how to run locally).
      - [x] **Repository Structure:**
        - [x] Organized and documented code following a consistent style guide (e.g., PEP 8 for Python, Airbnb for JS).
        - [x] Clear separation of logic by domain (e.g., `api/`, `models/`, `services/`, `ui/`, `tests/`).
@@ -106,7 +106,7 @@ Your repository at that commit must include:
 2. **Code and Configuration**:
    - [x] All source code (APIs, frontend, models, tests) properly organized in your repository
    - [x] CI/CD configuration files (e.g., `.github/workflows/`)
-   - [ ] README with setup and running instructions *Requires middleware completion.*
+   - [x] README with setup and running instructions *Requires middleware completion.*
 
 3. **CI Evidence**:
    - [x] Screenshot(s) of a passing CI run showing:
