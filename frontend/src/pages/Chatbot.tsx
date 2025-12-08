@@ -112,34 +112,119 @@ const Chatbot = () => {
         throw new Error(`API error: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-
-      // Remove thinking message
+      // Remove thinking message and create streaming message
       setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
 
-      const aiMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        text: data.result || "I couldn't find information about that.",
+      const streamingMessageId = (Date.now() + 2).toString();
+      const streamingMessage: Message = {
+        id: streamingMessageId,
+        text: "",
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         metadata: {
           searchTerms: query,
-          stageTimes: {
-            total: parseFloat(totalTime),
-          },
         },
-        neo4jData: data.neo4j_data, // Attach Neo4j graph data if available
       };
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, streamingMessage]);
 
-      // Update the latest Neo4j data for the ModelTree visualization
-      if (data.neo4j_data) {
-        setLatestNeo4jData(data.neo4j_data);
-        const nodeCount = data.neo4j_data?.nodes?.nodes?.length || 0;
-        const relCount = data.neo4j_data?.relationships?.relationships?.length || 0;
-        toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
-      } else {
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result = '';
+      let neo4jData: Neo4jData | null = null;
+
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'delta') {
+                // Update streaming message with new content
+                result += data.content;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? { ...msg, text: result }
+                      : msg
+                  )
+                );
+              } else if (data.type === 'complete') {
+                // Finalize message with complete result and neo4j data
+                result = data.result || result;
+                neo4jData = data.neo4j_data || null;
+
+                const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? {
+                          ...msg,
+                          text: result || "I couldn't find information about that.",
+                          metadata: {
+                            ...msg.metadata,
+                            stageTimes: {
+                              total: parseFloat(totalTime),
+                            },
+                          },
+                          neo4jData: neo4jData || undefined,
+                        }
+                      : msg
+                  )
+                );
+
+                // Update the latest Neo4j data for the ModelTree visualization
+                if (neo4jData) {
+                  setLatestNeo4jData(neo4jData);
+                  const nodeCount = neo4jData?.nodes?.nodes?.length || 0;
+                  const relCount = neo4jData?.relationships?.relationships?.length || 0;
+                  toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
+                } else {
+                  toast.success(`Retrieved information in ${totalTime}s!`);
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.content);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+              // Continue processing other lines
+            }
+          }
+        }
+      }
+
+      // If we didn't get a complete message, finalize with what we have
+      if (!neo4jData && result) {
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamingMessageId
+              ? {
+                  ...msg,
+                  text: result || "I couldn't find information about that.",
+                  metadata: {
+                    ...msg.metadata,
+                    stageTimes: {
+                      total: parseFloat(totalTime),
+                    },
+                  },
+                }
+              : msg
+          )
+        );
         toast.success(`Retrieved information in ${totalTime}s!`);
       }
     } catch (error) {
