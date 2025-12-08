@@ -19,6 +19,7 @@ Search for each of these in the GCP search bar and click enable to enable these 
     - Artifact Registry Administrator
     - Kubernetes Engine Admin
     - Service Account Admin
+    - Service Account User
     - Storage Admin
 - Then click done.
 - This will create a service account
@@ -156,11 +157,24 @@ graph LR
 kubectl get all
 kubectl get all --all-namespaces
 kubectl get pods --all-namespaces
+kubectl get pods -n datadetox-namespace
 ```
 
 ```
 kubectl get componentstatuses
 kubectl get nodes
+```
+
+```
+# Delete the deployments
+kubectl delete deployment frontend -n datadetox-namespace
+
+# Delete the model-lineage job and any related pods
+kubectl delete job model-lineage -n datadetox-namespace
+kubectl delete pods -n datadetox-namespace -l job-name=model-lineage
+
+# Delete the services (optional - if you want to remove them too)
+kubectl delete service neo4j backend -n datadetox-namespace
 ```
 
 ### If you want to shell into a container in a Pod
@@ -183,6 +197,19 @@ Outputs:
     nginx_ingress_ip: "34.9.143.147"
 ```
 * Go to `app_url`
+
+### Targeted Updates with Pulumi
+
+```
+# To find the exact urn
+pulumi stack --show-urns | grep frontend
+
+# Update only the frontend deployment
+pulumi up --stack dev --target 'urn:pulumi:dev::datadetox-deploy-k8s::kubernetes:apps/v1:Deployment::frontend'
+
+# Update only the backend deployment
+pulumi up --stack dev --target 'urn:pulumi:dev::datadetox-deploy-k8s::kubernetes:apps/v1:Deployment::backend'
+```
 
 ### Delete Cluster
 ```
