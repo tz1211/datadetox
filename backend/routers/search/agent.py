@@ -1,6 +1,7 @@
 from typing import List
 from agents import Agent, FunctionTool
 from .utils import search_huggingface, search_neo4j
+from .utils.extract_datasets import extract_training_datasets
 
 tools: List[FunctionTool] = [search_huggingface, search_neo4j]
 
