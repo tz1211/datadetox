@@ -176,7 +176,11 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
       }
     });
 
-    const models = neo4jData.nodes.nodes.filter(n => n.model_id && relatedModelIds.has(n.model_id));
+    let models = neo4jData.nodes.nodes.filter(n => n.model_id && relatedModelIds.has(n.model_id));
+    // Fallback: if no relationships, show all models so the graph isn't empty
+    if (models.length === 0) {
+      models = neo4jData.nodes.nodes.filter(n => n.model_id);
+    }
     const modelIdSet = new Set(models.map(m => m.model_id!));
     const queriedModelId = neo4jData.queried_model_id || models[0]?.model_id;
 
@@ -229,14 +233,15 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
             id: edgeId,
             source: sourceId,
             target: targetId,
-            label: rel.relationship.replace(/_/g, ' '),
-            type: 'smoothstep',
-            style: { stroke: '#facc15', strokeWidth: 3.5 },
-            labelStyle: { fill: '#e2e8f0', fontSize: 11, fontWeight: 600 },
-            labelBgStyle: { fill: '#111827', opacity: 0.85 },
+          label: rel.relationship.replace(/_/g, ' '),
+          type: 'smoothstep',
+          className: 'edge-yellow',
+          style: { stroke: '#facc15', strokeWidth: 3.5 },
+            labelStyle: { fill: '#1f2937', fontSize: 11, fontWeight: 700 },
+            labelBgStyle: { fill: '#e2e8f0', opacity: 0.9 },
           });
-          processedEdges.add(edgeId);
-        }
+        processedEdges.add(edgeId);
+      }
       }
     });
 
@@ -291,8 +296,21 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
   }
 
   return (
-    <Card className="bg-card border-border shadow-md h-full flex flex-col">
+    <Card className="bg-white border border-slate-200 shadow-md h-full flex flex-col text-slate-900">
       <CardContent className="p-0 flex-1 flex flex-col relative">
+        <style>{`
+          .edge-yellow path {
+            stroke: #facc15 !important;
+            stroke-width: 3.5px !important;
+            opacity: 1 !important;
+          }
+          /* Fallback to ensure all edge paths stay visible */
+          .react-flow__edge-path {
+            stroke: #facc15 !important;
+            stroke-width: 3.5px !important;
+            opacity: 1 !important;
+          }
+        `}</style>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -300,12 +318,13 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           fitView
           minZoom={0.1}
           maxZoom={2}
-          style={{ backgroundColor: '#0b1224' }}
+          style={{ backgroundColor: '#f8fafc' }}
           defaultEdgeOptions={{
-            style: { strokeWidth: 2.5, stroke: '#facc15' },
+            className: 'edge-yellow',
+            style: { strokeWidth: 3.5, stroke: '#facc15' },
           }}
         >
-          <Background color="#1f2937" gap={16} />
+          <Background color="#cbd5e1" gap={16} />
           <Controls />
           <MiniMap
             nodeColor={(node) => {
@@ -314,7 +333,7 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
             }}
             maskColor="rgba(0, 0, 0, 0.8)"
           />
-          <Panel position="bottom-right" className="bg-slate-900/90 px-3 py-2 rounded-lg text-xs text-slate-300 space-y-1">
+          <Panel position="bottom-right" className="bg-white/90 px-3 py-2 rounded-lg text-xs text-slate-700 border border-slate-200 shadow">
             <div>Models: {totalNodes}</div>
             <div>Relationships: {totalEdges}</div>
             <div>Datasets: {datasetsCount}</div>

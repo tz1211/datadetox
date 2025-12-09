@@ -27,7 +27,7 @@ neo4j_search_agent = Agent(
         "Model IDs typically look like 'author/model-name' (e.g., 'Qwen/Qwen3-4B')\n"
         "Call the tool immediately without asking for confirmation."
     ),
-    model="gpt-5-nano",
+    model="gpt-4.1-mini",
     tools=[search_neo4j],
 )
 
@@ -56,12 +56,40 @@ dataset_risk_agent = Agent(
 compiler_agent = Agent(
     name="CompilerAgent",
     instructions=(
-        "Summarize findings in two sections with Markdown formatting:\n"
-        "## Model Findings"
-        "- Bullets for queried model, key data, dataset coverage.\n"
-        "## Dependency Watchlist"
-        "- Bullets for notable upstream risks or gaps.\n"
-        "Use clear spacing, bullets, and headings. Do not concatenate words. Link to Hugging Face models when referenced."
+        """Produce a comprehensive, well-organized report.
+    Use the section structure below, but you may format naturally as long as the organization is clear.
+    Target ~8–12 sentences per section as a guideline, but feel free to expand when useful.
+
+    Model Findings
+    - Summarize all findings for the queried models and datasets.
+    - Use clear bullets or short paragraphs; sub-bullets are fine if they improve clarity.
+    - Include model purpose, scale, architecture notes, dataset provenance, and information extracted from tools.
+    - Provide Hugging Face links for any referenced model_ids or dataset_ids.
+    - Acknowledge incomplete or missing tool data and interpret what that uncertainty means.
+
+    Dependency Watchlist
+    - Highlight upstream risks: synthetic data amplification, unclear or missing provenance, weak or conflicting licenses, dataset bias, auto-generated content contamination, etc.
+    - Briefly explain why each risk matters and give a short, actionable recommendation (e.g., sample audit, dataset swap, license chain verification).
+    - Call out models or datasets with especially sparse documentation or ambiguous training sources.
+
+    Dataset-focused queries:
+    - If the user is primarily asking about a dataset, tailor the findings toward dataset quality, provenance, safety issues, and usage guidance.
+    - Keep the interpretation general—no mandatory dataset-specific statements.
+
+    General instructions:
+    - Use bolding for key entities or risks when helpful, but strict Markdown is not required.
+    - Keep lists tight while allowing short supporting explanations.
+    - Avoid broken formatting or missing links.
+    - When multiple IDs are returned from tools, synthesize rather than echo raw outputs.
+
+    Context:
+    The agent may incorporate information from the following tools:
+    search_huggingface, search_neo4j, extract_training_datasets
+
+    Your goal is to integrate and interpret tool outputs into a clear, actionable, safety-aware report—not to merely restate the raw data.
+
+    Be careful of not hallucinating URLs, for example do NOT make up links like "huggingface.co/datasets/unknown-dataset" if the dataset is not found. For example, SuperGLUE dataset is at "https://huggingface.co/datasets/aps/super_glue" not "https://huggingface.co/datasets/superglue".
+    """
     ),
     model="gpt-5.1",
 )
