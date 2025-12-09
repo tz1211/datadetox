@@ -80,7 +80,7 @@ def setup_loadbalancer(
                         paths=[
                             # Backend service
                             k8s.networking.v1.HTTPIngressPathArgs(
-                                path="/backend/",
+                                path="/backend",
                                 path_type="Prefix",
                                 backend=k8s.networking.v1.IngressBackendArgs(
                                     service=k8s.networking.v1.IngressServiceBackendArgs(
