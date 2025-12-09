@@ -171,9 +171,9 @@ def search_query(model_id: str) -> HFGraphData:
         )
 
     # Get upstream models first (consume most of the limit)
-    # Direction: upstream -> queried_model (INCOMING relationships to queried model)
+    # Direction: queried_model -> upstream (OUTGOING relationships from queried model to its bases)
     upstream_query = """
-        MATCH (root:Model {model_id: $model_id})<-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]-(upstream:Model)
+        MATCH (root:Model {model_id: $model_id})-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]->(upstream:Model)
         RETURN upstream, type(r) as rel_type
         ORDER BY upstream.downloads DESC
         LIMIT $limit
@@ -185,11 +185,11 @@ def search_query(model_id: str) -> HFGraphData:
         routing_=neo4j.RoutingControl.READ,
     )
 
-    # Remaining budget for downstream (queried_model -> downstream)
+    # Remaining budget for downstream (downstream -> queried_model, derivatives of queried model)
     remaining_budget = max(0, MAX_RELATED - len(upstream_res))
     if remaining_budget > 0:
         downstream_query = """
-            MATCH (root:Model {model_id: $model_id})-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]->(downstream:Model)
+            MATCH (root:Model {model_id: $model_id})<-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]-(downstream:Model)
             RETURN downstream, type(r) as rel_type
             ORDER BY downstream.downloads DESC
             LIMIT $limit
@@ -215,7 +215,7 @@ def search_query(model_id: str) -> HFGraphData:
     relationships = []
 
     # Process upstream models (all of them) and build relationships
-    # Upstream relationships: upstream -> queried_model
+    # Upstream relationships: queried_model -> upstream (queried model is based on upstream)
     for record in upstream_res:
         upstream_dict = record.data()["upstream"]
         upstream_model = _ensure_entity(upstream_dict)
@@ -224,14 +224,14 @@ def search_query(model_id: str) -> HFGraphData:
             rel_type = record.data()["rel_type"]
             relationships.append(
                 HFRelationship(
-                    source=upstream_model,
+                    source=root_model,
                     relationship=rel_type,
-                    target=root_model,
+                    target=upstream_model,
                 )
             )
 
     # Process downstream models (max 5) and build relationships
-    # Downstream relationships: queried_model -> downstream
+    # Downstream relationships: downstream -> queried_model (downstream is based on queried model)
     for record in downstream_res:
         downstream_dict = record.data()["downstream"]
         downstream_model = _ensure_entity(downstream_dict)
@@ -240,16 +240,16 @@ def search_query(model_id: str) -> HFGraphData:
             rel_type = record.data()["rel_type"]
             relationships.append(
                 HFRelationship(
-                    source=root_model,
+                    source=downstream_model,
                     relationship=rel_type,
-                    target=downstream_model,
+                    target=root_model,
                 )
             )
 
     all_nodes = list(all_nodes_dict.values())
 
-    upstream_count = sum(1 for r in relationships if r.target.model_id == model_id)
-    downstream_count = sum(1 for r in relationships if r.source.model_id == model_id)
+    upstream_count = sum(1 for r in relationships if r.source.model_id == model_id)
+    downstream_count = sum(1 for r in relationships if r.target.model_id == model_id)
 
     logger.info(
         f"Found {upstream_count} upstream models, "

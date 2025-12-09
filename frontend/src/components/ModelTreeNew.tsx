@@ -167,6 +167,29 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
 
     const relationships = neo4jData.relationships?.relationships || [];
 
+    // Build a complete map of all models (both from nodes and relationships)
+    const modelMap = new Map<string, Neo4jNode>();
+
+    // First, add all nodes from the nodes list
+    neo4jData.nodes.nodes.forEach(node => {
+      if (node.model_id) {
+        modelMap.set(node.model_id, node);
+      }
+    });
+
+    // Then, add any models from relationships that aren't in the nodes list
+    // This ensures we show upstream/downstream models even if backend didn't include them
+    relationships.forEach(rel => {
+      if (rel.source.model_id && !modelMap.has(rel.source.model_id)) {
+        modelMap.set(rel.source.model_id, rel.source);
+        console.log('Added missing source model from relationship:', rel.source.model_id);
+      }
+      if (rel.target.model_id && !modelMap.has(rel.target.model_id)) {
+        modelMap.set(rel.target.model_id, rel.target);
+        console.log('Added missing target model from relationship:', rel.target.model_id);
+      }
+    });
+
     // Only keep models that participate in at least one model↔model relationship
     const relatedModelIds = new Set<string>();
     relationships.forEach(rel => {
@@ -176,10 +199,10 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
       }
     });
 
-    let models = neo4jData.nodes.nodes.filter(n => n.model_id && relatedModelIds.has(n.model_id));
+    let models = Array.from(modelMap.values()).filter(n => n.model_id && relatedModelIds.has(n.model_id));
     // Fallback: if no relationships, show all models so the graph isn't empty
     if (models.length === 0) {
-      models = neo4jData.nodes.nodes.filter(n => n.model_id);
+      models = Array.from(modelMap.values()).filter(n => n.model_id);
     }
     const modelIdSet = new Set(models.map(m => m.model_id!));
 
