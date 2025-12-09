@@ -209,6 +209,14 @@ jobs:
       - name: Install Pulumi CLI
         uses: pulumi/actions@v4
 
+      - name: Install Pulumi plugins
+        run: |
+          pulumi plugin install resource command 1.1.3
+          pulumi plugin install resource docker-build 0.0.15
+          pulumi plugin install resource docker 4.9.0
+          pulumi plugin install resource gcp 9.3.0
+          pulumi plugin install resource kubernetes 4.23.0
+
       - name: Install deployment deps
         working-directory: deployment
         run: uv sync --dev
