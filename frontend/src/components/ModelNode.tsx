@@ -50,7 +50,7 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
 
   return (
     <div className="relative">
-      {/* Connection handles */}
+      {/* Single connection handle */}
       <Handle
         type="target"
         position={Position.Top}
@@ -170,13 +170,6 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
           </div>
         )}
       </div>
-
-      {/* Connection handle */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
-      />
     </div>
   );
 });

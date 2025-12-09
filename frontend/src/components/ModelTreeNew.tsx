@@ -231,9 +231,9 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
             target: targetId,
             label: rel.relationship.replace(/_/g, ' '),
             type: 'smoothstep',
-            style: { stroke: '#3b82f6', strokeWidth: 2 },
-            labelStyle: { fill: '#94a3b8', fontSize: 11, fontWeight: 600 },
-            labelBgStyle: { fill: '#1e293b', opacity: 0.8 },
+            style: { stroke: '#facc15', strokeWidth: 3.5 },
+            labelStyle: { fill: '#e2e8f0', fontSize: 11, fontWeight: 600 },
+            labelBgStyle: { fill: '#111827', opacity: 0.85 },
           });
           processedEdges.add(edgeId);
         }
@@ -242,9 +242,9 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
 
     // Adaptive spacing: scale out mildly as the graph grows to avoid overlaps
     const nodeCount = flowNodes.length || 1;
-    const densityScale = Math.min(2, Math.max(1, nodeCount / 8)); // start scaling after ~8 nodes
-    const nodeSpacing = 120 * densityScale;
-    const layerSpacing = 120 * densityScale;
+    const densityScale = Math.min(1.4, Math.max(1, nodeCount / 8)); // tighter packing
+    const nodeSpacing = 110 * densityScale;
+    const layerSpacing = 130 * densityScale;
 
     // Apply automatic layout
     console.log('Applying layout to', flowNodes.length, 'nodes and', flowEdges.length, 'edges', 'spacing', nodeSpacing, layerSpacing);
@@ -252,6 +252,8 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
       direction: 'UP',  // Upstream at top, downstream at bottom
       nodeSpacing,
       layerSpacing,
+      preventOverlap: true,
+      edgeRouting: 'ORTHOGONAL',
     }).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
       console.log('Layout complete. First node position:', layoutedNodes[0]?.position);
       setNodes(layoutedNodes);
@@ -298,11 +300,12 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           fitView
           minZoom={0.1}
           maxZoom={2}
+          style={{ backgroundColor: '#0b1224' }}
           defaultEdgeOptions={{
-            style: { strokeWidth: 2, stroke: '#3b82f6' },
+            style: { strokeWidth: 2.5, stroke: '#facc15' },
           }}
         >
-          <Background color="#3b82f6" gap={16} />
+          <Background color="#1f2937" gap={16} />
           <Controls />
           <MiniMap
             nodeColor={(node) => {

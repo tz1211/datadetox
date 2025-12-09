@@ -75,6 +75,7 @@ const Chatbot = () => {
   const [leftWidth, setLeftWidth] = useState(50); // Percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [statusLine, setStatusLine] = useState<string | null>(null);
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -126,6 +127,7 @@ const Chatbot = () => {
         text: "",
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isThinking: true,
         metadata: {
           searchTerms: query,
         },
@@ -143,9 +145,36 @@ const Chatbot = () => {
         throw new Error("No response body reader available");
       }
 
+      const stripStatus = (text: string) => {
+        const statuses: string[] = [];
+        // Split but retain newlines so spacing is preserved
+        const segments = text.split(/(\r?\n)/);
+        const kept: string[] = [];
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          const lower = seg.trim().toLowerCase();
+          if (lower.startsWith("stage")) {
+            if (!lower.includes("complete")) {
+              statuses.push(seg.trim());
+            }
+            // skip immediate newline following a status line
+            if (i + 1 < segments.length && segments[i + 1].match(/\r?\n/)) {
+              i += 1;
+            }
+            continue;
+          }
+          kept.push(seg);
+        }
+        return {
+          latestStatus: statuses.length ? statuses[statuses.length - 1] : null,
+          cleanedText: kept.join(""),
+        };
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
+          setStatusLine(null);
           // Remove thinking message if it still exists (stream ended without chunks)
           if (!firstChunkReceived) {
             setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
@@ -164,6 +193,7 @@ const Chatbot = () => {
                   msg.id === aiMessageId
                     ? {
                         ...msg,
+                        isThinking: false,
                         metadata: {
                           ...msg.metadata,
                           stageTimes: {
@@ -192,10 +222,21 @@ const Chatbot = () => {
               console.error("Failed to parse metadata (stream end):", e, "Buffer:", metadataBuffer);
             }
           }
+          // Stop spinner on AI message
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMessageId ? { ...msg, isThinking: false } : msg
+            )
+          );
           break;
         }
 
-        const chunk = decoder.decode(value, { stream: true });
+        const chunkRaw = decoder.decode(value, { stream: true });
+        const { latestStatus, cleanedText } = stripStatus(chunkRaw);
+        if (latestStatus) {
+          setStatusLine(latestStatus);
+        }
+        const chunk = cleanedText;
 
         // Remove thinking message and add AI message on first chunk
         if (!firstChunkReceived) {
@@ -223,6 +264,7 @@ const Chatbot = () => {
                   msg.id === aiMessageId
                     ? {
                         ...msg,
+                        isThinking: false,
                         metadata: {
                           ...msg.metadata,
                           stageTimes: {
@@ -249,6 +291,12 @@ const Chatbot = () => {
                 setDatasetRisk(null);
                 toast.success(`Retrieved information in ${totalTime}s!`);
               }
+              setStatusLine(null);
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId ? { ...msg, isThinking: false } : msg
+                )
+              );
             } catch (e) {
               console.error("Failed to parse metadata:", e, "Buffer:", metadataBuffer);
             }
@@ -287,6 +335,7 @@ const Chatbot = () => {
                       msg.id === aiMessageId
                         ? {
                             ...msg,
+                            isThinking: false,
                             metadata: {
                               ...msg.metadata,
                               stageTimes: {
@@ -311,6 +360,12 @@ const Chatbot = () => {
                     setDatasetRisk(null);
                     toast.success(`Retrieved information in ${totalTime}s!`);
                   }
+                  setStatusLine(null);
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMessageId ? { ...msg, isThinking: false } : msg
+                    )
+                  );
                 } catch (e) {
                   console.error("Failed to parse metadata (same chunk):", e, "Buffer:", metadataBuffer);
                 }
@@ -393,22 +448,41 @@ const Chatbot = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <div className="pt-16 pb-4 px-4">
+      <div className="p-3">
         {/* Resizable Two-Panel Layout */}
-        <div ref={containerRef} className="flex h-[calc(100vh-140px)] gap-0 max-w-[98vw] mx-auto">
+        <div ref={containerRef} className="flex h-[calc(100vh-60px)] gap-0 max-w-[99vw] mx-auto">
           {/* Left Panel - Chat */}
-          <div style={{ width: `${leftWidth}%` }} className="flex flex-col">
+          <div style={{ width: `${leftWidth}%` }} className="flex flex-col relative">
             <Card className="bg-card border-border shadow-lg h-full flex flex-col">
-              <CardHeader className="border-b border-border py-3">
+              <CardHeader className="border-b border-border py-3 flex items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Sparkles className="w-5 h-5 text-secondary" />
                   Chat with DataDetox AI
                 </CardTitle>
+                <button
+                  onClick={() => (window.location.href = "/")}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1 shadow-sm hover:bg-accent transition-colors text-xs font-semibold"
+                  title="Back to Home"
+                >
+                  Home
+                </button>
               </CardHeader>
 
               <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                {statusLine && (
+                  <div className="space-y-2">
+                    <div
+                      className="flex items-center gap-3 rounded-xl border border-purple-300/50 bg-gradient-to-r from-indigo-900/70 via-purple-900/60 to-slate-900/60 px-3 py-2 shadow-lg animate-[fadeInUp_0.25s_ease]"
+                    >
+                      <div className="h-2 w-2 rounded-full bg-emerald-300 animate-ping" />
+                      <div className="text-xs font-semibold text-slate-50 tracking-tight">
+                        {statusLine}
+                      </div>
+                      <div className="ml-auto text-[10px] text-slate-200/80 animate-pulse">thinking</div>
+                    </div>
+                  </div>
+                )}
+
                 {messages.map((message) => (
                   <ChatMessage
                     key={message.id}

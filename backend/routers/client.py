@@ -178,7 +178,6 @@ async def run_search(query: Query, request: Request):
                 neo4j_summary = await _collect_response_text(neo4j_result)
                 stage_summaries["neo4j_lineage"] = neo4j_summary
                 await emit_status("Stage 2 complete.")
-
                 neo4j_graph = get_tool_result("search_neo4j", request)
 
                 # Fallback: If Neo4j agent didn't call the tool, try extracting model IDs and calling directly
@@ -195,7 +194,6 @@ async def run_search(query: Query, request: Request):
                     search_logger.info(
                         f"Extracted model IDs from HF summary: {extracted_model_ids}"
                     )
-
                     if extracted_model_ids:
                         try:
                             # Try searching with the first model ID
@@ -216,7 +214,6 @@ async def run_search(query: Query, request: Request):
 
                 dataset_task = None
                 hf_followup_task = None
-
                 # Stage 3: Arxiv dataset extraction agent (uses new tooling)
                 if model_ids:
                     await emit_status("Stage 3: Extracting training datasets...")

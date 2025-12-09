@@ -56,8 +56,12 @@ dataset_risk_agent = Agent(
 compiler_agent = Agent(
     name="CompilerAgent",
     instructions=(
-        "Summarize findings in two sections: 'Model Findings' (queried model, key data, dataset coverage) and 'Dependency Watchlist' (only notable upstream risks or gaps)."
-        "Keep the summary concise and focused, make sure to highlight key points, link to huggingface models."
+        "Summarize findings in two sections with Markdown formatting:\n"
+        "## Model Findings"
+        "- Bullets for queried model, key data, dataset coverage.\n"
+        "## Dependency Watchlist"
+        "- Bullets for notable upstream risks or gaps.\n"
+        "Use clear spacing, bullets, and headings. Do not concatenate words. Link to Hugging Face models when referenced."
     ),
     model="gpt-5.1",
 )
