@@ -208,7 +208,9 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
             ),
         ),
         opts=pulumi.ResourceOptions(
-            provider=k8s_provider, depends_on=[namespace, neo4j_pvc]
+            provider=k8s_provider,
+            depends_on=[namespace, neo4j_pvc],
+            replace_on_changes=["spec.strategy"],
         ),
     )
 
@@ -309,6 +311,7 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         opts=pulumi.ResourceOptions(
             provider=k8s_provider,
             depends_on=[neo4j_service, persistent_pvc],
+            replace_on_changes=["spec.strategy"],
         ),
     )
 

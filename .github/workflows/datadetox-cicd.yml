@@ -2,9 +2,9 @@ name: datadetox-cicd
 
 on:
   push:
-    branches: [main, develop, "milestone*", "deployment"]
+    branches: [main, develop, "milestone*", deployment]
   pull_request:
-    branches: [main, develop, "milestone*", "deployment"]
+    branches: [main, develop, "milestone*", deployment]
 
 jobs:
   filter-changes:
