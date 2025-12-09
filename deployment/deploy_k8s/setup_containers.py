@@ -18,17 +18,18 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
     # Get environment variables from .env file and set as secrets
     openai_api_key = pulumi.Output.secret(os.getenv("OPENAI_API_KEY", ""))
     hf_token = pulumi.Output.secret(os.getenv("HF_TOKEN", ""))
-    neo4j_user = os.getenv(
-        "NEO4J_USER", "neo4j"
-    )  # Username can be plain (not sensitive)
+    neo4j_uri = pulumi.Output.secret(os.getenv("NEO4J_URI", "bolt://neo4j:7687"))
+    neo4j_user = pulumi.Output.secret(os.getenv("NEO4J_USER", "neo4j"))
     neo4j_password = pulumi.Output.secret(os.getenv("NEO4J_PASSWORD", "password"))
+    neo4j_auth = pulumi.Output.all(neo4j_user, neo4j_password).apply(
+        lambda args: f"{args[0]}/{args[1]}"
+    )
 
-    # Combine neo4j_user and password securely
-    neo4j_auth = pulumi.Output.all(
-        pulumi.Output.from_input(neo4j_user), neo4j_password
-    ).apply(lambda args: f"{args[0]}/{args[1]}")
+    # Check if we should run model-lineage job automatically on setup
+    config = pulumi.Config()
+    run_model_lineage_on_setup = config.get_bool("run_model_lineage_on_setup", False)
 
-    # General persistent storage for application data (5Gi)
+    # General persistent storage for application data (20Gi)
     persistent_pvc = k8s.core.v1.PersistentVolumeClaim(
         "persistent-pvc",
         metadata=k8s.meta.v1.ObjectMetaArgs(
@@ -38,7 +39,7 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         spec=k8s.core.v1.PersistentVolumeClaimSpecArgs(
             access_modes=["ReadWriteOnce"],  # Single pod read/write access
             resources=k8s.core.v1.VolumeResourceRequirementsArgs(
-                requests={"storage": "5Gi"},  # Request 5GB of persistent storage
+                requests={"storage": "20Gi"},  # Request 20GB of persistent storage
             ),
         ),
         opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace]),
@@ -164,6 +165,10 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                                     name="NEO4J_AUTH", value=neo4j_auth
                                 ),  # Neo4j authentication
                                 k8s.core.v1.EnvVarArgs(
+                                    name="NEO4J_PLUGINS",
+                                    value='["apoc"]',  # Enable APOC plugin
+                                ),
+                                k8s.core.v1.EnvVarArgs(
                                     name="NEO4J_server_memory_heap_max__size",
                                     value="2G",
                                 ),  # Set Neo4j heap size to 2GB
@@ -228,30 +233,49 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         ),
     )
 
-    # --- Model Lineage Deployment ---
-    model_lineage_job = k8s.batch.v1.Job(
-        "model-lineage",
+    # --- Model Lineage Deployment (for manual execution) ---
+    # This creates a Deployment that stays running so you can exec into it
+    # Start with 0 replicas - scale up when you want to use it
+    _model_lineage_deployment = k8s.apps.v1.Deployment(
+        "model-lineage-deployment",
         metadata=k8s.meta.v1.ObjectMetaArgs(
             name="model-lineage",
             namespace=namespace.metadata.name,
         ),
-        spec=k8s.batch.v1.JobSpecArgs(
-            backoff_limit=3,  # Retry up to 4 times on failure
+        spec=k8s.apps.v1.DeploymentSpecArgs(
+            replicas=0,  # Start with 0 replicas - scale up when you want to use it
+            selector=k8s.meta.v1.LabelSelectorArgs(
+                match_labels={"app": "model-lineage"},
+            ),
             template=k8s.core.v1.PodTemplateSpecArgs(
+                metadata=k8s.meta.v1.ObjectMetaArgs(
+                    labels={"app": "model-lineage"},
+                ),
                 spec=k8s.core.v1.PodSpecArgs(
                     service_account_name=ksa_name,  # Use Workload Identity for GCP access
-                    restart_policy="Never",  # Don't restart pod on completion
+                    volumes=[
+                        k8s.core.v1.VolumeArgs(
+                            name="persistent-vol",
+                            persistent_volume_claim=k8s.core.v1.PersistentVolumeClaimVolumeSourceArgs(
+                                claim_name=persistent_pvc.metadata.name,
+                            ),
+                        ),
+                    ],
                     containers=[
                         k8s.core.v1.ContainerArgs(
                             name="model-lineage",
                             image=model_lineage_tag.apply(lambda tags: tags[0]),
+                            command=[
+                                "sleep",
+                                "infinity",
+                            ],  # Keep container alive for manual execution
                             env=[
                                 k8s.core.v1.EnvVarArgs(
                                     name="GCP_PROJECT", value=project
                                 ),
                                 k8s.core.v1.EnvVarArgs(
                                     name="NEO4J_URI",
-                                    value="bolt://neo4j:7687",
+                                    value=neo4j_uri,
                                 ),
                                 k8s.core.v1.EnvVarArgs(
                                     name="NEO4J_USER", value=neo4j_user
@@ -261,15 +285,16 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                                 ),
                                 k8s.core.v1.EnvVarArgs(name="HF_TOKEN", value=hf_token),
                             ],
-                            args=[
-                                "uv",
-                                "run",
-                                "python",
-                                "lineage_scraper.py",
-                                "--full",
-                                "--limit",
-                                "500",
+                            volume_mounts=[
+                                k8s.core.v1.VolumeMountArgs(
+                                    name="persistent-vol",
+                                    mount_path="/app/data",
+                                ),
                             ],
+                            resources=k8s.core.v1.ResourceRequirementsArgs(
+                                requests={"cpu": "100m", "memory": "512Mi"},
+                                limits={"cpu": "2000m", "memory": "4Gi"},
+                            ),
                         ),
                     ],
                 ),
@@ -277,9 +302,79 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         ),
         opts=pulumi.ResourceOptions(
             provider=k8s_provider,
-            depends_on=[neo4j_service],
+            depends_on=[neo4j_service, persistent_pvc],
         ),
     )
+
+    # Optional: Create a Job that runs automatically if config is set
+    if run_model_lineage_on_setup:
+        _model_lineage_job = k8s.batch.v1.Job(
+            "model-lineage-job",
+            metadata=k8s.meta.v1.ObjectMetaArgs(
+                name="model-lineage-job",
+                namespace=namespace.metadata.name,
+            ),
+            spec=k8s.batch.v1.JobSpecArgs(
+                backoff_limit=3,  # Retry up to 4 times on failure
+                template=k8s.core.v1.PodTemplateSpecArgs(
+                    spec=k8s.core.v1.PodSpecArgs(
+                        service_account_name=ksa_name,  # Use Workload Identity for GCP access
+                        restart_policy="Never",  # Don't restart pod on completion
+                        volumes=[
+                            k8s.core.v1.VolumeArgs(
+                                name="persistent-vol",
+                                persistent_volume_claim=k8s.core.v1.PersistentVolumeClaimVolumeSourceArgs(
+                                    claim_name=persistent_pvc.metadata.name,  # Mount persistent storage
+                                ),
+                            ),
+                        ],
+                        containers=[
+                            k8s.core.v1.ContainerArgs(
+                                name="model-lineage",
+                                image=model_lineage_tag.apply(lambda tags: tags[0]),
+                                env=[
+                                    k8s.core.v1.EnvVarArgs(
+                                        name="GCP_PROJECT", value=project
+                                    ),
+                                    k8s.core.v1.EnvVarArgs(
+                                        name="NEO4J_URI",
+                                        value=neo4j_uri,
+                                    ),
+                                    k8s.core.v1.EnvVarArgs(
+                                        name="NEO4J_USER", value=neo4j_user
+                                    ),
+                                    k8s.core.v1.EnvVarArgs(
+                                        name="NEO4J_PASSWORD", value=neo4j_password
+                                    ),
+                                    k8s.core.v1.EnvVarArgs(
+                                        name="HF_TOKEN", value=hf_token
+                                    ),
+                                ],
+                                volume_mounts=[
+                                    k8s.core.v1.VolumeMountArgs(
+                                        name="persistent-vol",
+                                        mount_path="/app/data",  # Mount over the data directory
+                                    ),
+                                ],
+                                args=[
+                                    "uv",
+                                    "run",
+                                    "python",
+                                    "lineage_scraper.py",
+                                    "--full",
+                                    "--limit",
+                                    "1000",
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            opts=pulumi.ResourceOptions(
+                provider=k8s_provider,
+                depends_on=[neo4j_service, persistent_pvc],
+            ),
+        )
 
     # --- Backend Deployment ---
     backend_deployment = k8s.apps.v1.Deployment(
@@ -301,14 +396,6 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                     security_context=k8s.core.v1.PodSecurityContextArgs(
                         fs_group=1000,
                     ),
-                    volumes=[
-                        k8s.core.v1.VolumeArgs(
-                            name="persistent-vol",
-                            persistent_volume_claim=k8s.core.v1.PersistentVolumeClaimVolumeSourceArgs(
-                                claim_name=persistent_pvc.metadata.name,  # Persistent storage
-                            ),
-                        )
-                    ],
                     containers=[
                         k8s.core.v1.ContainerArgs(
                             name="backend",
@@ -320,12 +407,6 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                                 k8s.core.v1.ContainerPortArgs(
                                     container_port=8000,  # Backend server port
                                     protocol="TCP",
-                                )
-                            ],
-                            volume_mounts=[
-                                k8s.core.v1.VolumeMountArgs(
-                                    name="persistent-vol",
-                                    mount_path="/persistent",  # Temporary file storage
                                 )
                             ],
                             env=[
@@ -344,14 +425,16 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                                 ),
                                 k8s.core.v1.EnvVarArgs(name="HF_TOKEN", value=hf_token),
                             ],
+                            resources=k8s.core.v1.ResourceRequirementsArgs(
+                                requests={"cpu": "250m", "memory": "512Mi"},
+                                limits={"cpu": "1000m", "memory": "2Gi"},
+                            ),
                         ),
                     ],
                 ),
             ),
         ),
-        opts=pulumi.ResourceOptions(
-            provider=k8s_provider, depends_on=[model_lineage_job]
-        ),
+        opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[namespace]),
     )
 
     # --- Backend Service ---
@@ -374,6 +457,51 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         ),
         opts=pulumi.ResourceOptions(
             provider=k8s_provider, depends_on=[backend_deployment]
+        ),
+    )
+
+    # --- Horizontal Pod Autoscalers ---
+    # Backend HPA - scales based on CPU utilization
+    _backend_hpa = k8s.autoscaling.v1.HorizontalPodAutoscaler(
+        "backend-hpa",
+        metadata=k8s.meta.v1.ObjectMetaArgs(
+            name="backend-hpa",
+            namespace=namespace.metadata.name,
+        ),
+        spec=k8s.autoscaling.v1.HorizontalPodAutoscalerSpecArgs(
+            scale_target_ref=k8s.autoscaling.v1.CrossVersionObjectReferenceArgs(
+                api_version="apps/v1",
+                kind="Deployment",
+                name=backend_deployment.metadata.name,
+            ),
+            min_replicas=1,
+            max_replicas=3,
+            target_cpu_utilization_percentage=70,
+        ),
+        opts=pulumi.ResourceOptions(
+            provider=k8s_provider, depends_on=[backend_deployment]
+        ),
+    )
+
+    # Frontend HPA - scales based on CPU utilization
+    _frontend_hpa = k8s.autoscaling.v1.HorizontalPodAutoscaler(
+        "frontend-hpa",
+        metadata=k8s.meta.v1.ObjectMetaArgs(
+            name="frontend-hpa",
+            namespace=namespace.metadata.name,
+        ),
+        spec=k8s.autoscaling.v1.HorizontalPodAutoscalerSpecArgs(
+            scale_target_ref=k8s.autoscaling.v1.CrossVersionObjectReferenceArgs(
+                api_version="apps/v1",
+                kind="Deployment",
+                name=frontend_deployment.metadata.name,
+            ),
+            min_replicas=1,
+            max_replicas=3,
+            target_cpu_utilization_percentage=70,
+        ),
+        opts=pulumi.ResourceOptions(
+            provider=k8s_provider, depends_on=[frontend_deployment]
         ),
     )
 
