@@ -98,9 +98,8 @@ const Chatbot = () => {
     const startTime = Date.now();
 
     try {
-      // Call the backend API
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl}/flow/search`, {
+      // Call the backend API - use relative path so it works with ingress
+      const response = await fetch('/backend/flow/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
