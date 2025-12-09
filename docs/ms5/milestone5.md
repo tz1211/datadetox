@@ -6,10 +6,10 @@
 - [N/A] Integrate ML workflow elements (data preprocessing, training, evaluation, retraining triggers) into your deployed system.
 
 2. CI/CD for Production
-- [ ] Extend your GitHub Actions pipelines to support deployment.
+- [X] Extend your GitHub Actions pipelines to support deployment.
 - [X] Include unit tests and integration tests.
 - [X] Achieve minimum 60% test coverage, and clearly document what remains untested.
-- [ ] Ensure merges to main trigger an automated build-and-deploy pipeline.
+- [X] Ensure merges to main trigger an automated build-and-deploy pipeline.
 
 3. Public Communication and Presentation Materials
 - [ ] Prepare a polished 6-minute video describing and demonstrating your project.
@@ -27,11 +27,11 @@
     - [X] Demonstrate basic scaling behavior by varying the load and showing how the cluster responds (e.g., scaling replicas/pods).
 - [X] Pulumi Infrastructure Code:
     - [X] Use Pulumi to automate the provisioning and deployment of your infrastructure (e.g., Kubernetes cluster, networking, storage, configurations, etc.) and application.
-- [ ] CI/CD Pipeline Implementation (GitHub Actions):
-    - [ ] Set up a CI/CD pipeline using GitHub Actions. The pipeline should:
+- [X] CI/CD Pipeline Implementation (GitHub Actions):
+    - [X] Set up a CI/CD pipeline using GitHub Actions. The pipeline should:
         - [X] Have a unit test suite for each service/container.
         - [X] Run integration tests on the code base.
-        - [ ] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
+        - [X] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
         - [X] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
 - [N/A] Machine Learning Workflow:
     - Demonstrate a production-ready ML workflow, including:

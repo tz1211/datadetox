@@ -22,15 +22,14 @@ ENV/
 *.swo
 *~
 
-# Testing
+# Testing artifacts
+tests/
 .pytest_cache/
-pytest.ini
-.coverage
-coverage.json
 coverage.xml
+coverage.json
+.coverage
 htmlcov/
 .tox/
-tests/
 
 # OS
 .DS_Store
