@@ -24,9 +24,13 @@ ENV/
 
 # Testing
 .pytest_cache/
+pytest.ini
 .coverage
+coverage.json
+coverage.xml
 htmlcov/
 .tox/
+tests/
 
 # OS
 .DS_Store
