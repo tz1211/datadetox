@@ -8,7 +8,7 @@ from rich.logging import RichHandler
 from .search import search_agent
 from .search.utils.tool_state import get_tool_result, set_request_context
 
-router = APIRouter(prefix="/flow")
+router = APIRouter(prefix="/backend/flow")
 
 logging.basicConfig(level=logging.INFO, handlers=[RichHandler()])
 logger = logging.getLogger(__name__)

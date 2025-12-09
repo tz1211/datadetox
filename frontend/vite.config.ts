@@ -8,6 +8,15 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 3000,
+    allowedHosts: [
+      ".sslip.io", // Allow all sslip.io subdomains
+    ],
+    proxy: {
+      '/backend': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

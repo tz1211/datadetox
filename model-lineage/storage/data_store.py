@@ -55,6 +55,35 @@ class DVCDataStore:
             )
             return
 
+        # Check if Git is initialized (required for DVC)
+        git_dir = project_root / ".git"
+        if not git_dir.exists():
+            logger.info("Initializing Git repository (required for DVC)...")
+            try:
+                subprocess.run(
+                    ["git", "init"],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                )
+                # Configure Git with minimal settings (required for commits)
+                subprocess.run(
+                    ["git", "config", "user.name", "DVC User"],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "config", "user.email", "dvc@datadetox.local"],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                )
+                logger.info("Git repository initialized")
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Git init failed: {e}")
+                return
+
         dvc_dir = project_root / ".dvc"
 
         if not dvc_dir.exists():
