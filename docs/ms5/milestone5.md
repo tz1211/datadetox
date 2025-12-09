@@ -7,8 +7,8 @@
 
 2. CI/CD for Production
 - [ ] Extend your GitHub Actions pipelines to support deployment.
-- [ ] Include unit tests and integration tests.
-- [ ] Achieve minimum 60% test coverage, and clearly document what remains untested.
+- [X] Include unit tests and integration tests.
+- [X] Achieve minimum 60% test coverage, and clearly document what remains untested.
 - [ ] Ensure merges to main trigger an automated build-and-deploy pipeline.
 
 3. Public Communication and Presentation Materials
@@ -32,7 +32,7 @@
         - [X] Have a unit test suite for each service/container.
         - [X] Run integration tests on the code base.
         - [ ] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
-        - [ ] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
+        - [X] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
 - [N/A] Machine Learning Workflow:
     - Demonstrate a production-ready ML workflow, including:
         - Data preprocessing, model training, and evaluation steps integrated into the pipeline.
