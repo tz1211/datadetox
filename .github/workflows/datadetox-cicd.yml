@@ -22,6 +22,7 @@ jobs:
               - 'frontend/**'
               - 'model-lineage/**'
               - 'neo4j/**'
+              - 'deployment/**'
               - '.github/workflows/datadetox-cicd.yml'
 
   unit-tests:

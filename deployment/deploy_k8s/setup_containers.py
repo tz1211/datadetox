@@ -136,7 +136,7 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         ),
         spec=k8s.apps.v1.DeploymentSpecArgs(
             strategy=k8s.apps.v1.DeploymentStrategyArgs(
-                type="Recreate",
+                type="Recreate"  # Use Recreate instead of RollingUpdate for ReadWriteOnce volumes
             ),
             selector=k8s.meta.v1.LabelSelectorArgs(
                 match_labels={"run": "neo4j"},
@@ -210,7 +210,6 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         opts=pulumi.ResourceOptions(
             provider=k8s_provider,
             depends_on=[namespace, neo4j_pvc],
-            replace_on_changes=["spec.strategy"],
         ),
     )
 
@@ -250,7 +249,7 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         spec=k8s.apps.v1.DeploymentSpecArgs(
             replicas=0,  # Start with 0 replicas - scale up when you want to use it
             strategy=k8s.apps.v1.DeploymentStrategyArgs(
-                type="Recreate",
+                type="Recreate"  # Use Recreate instead of RollingUpdate for ReadWriteOnce volumes
             ),
             selector=k8s.meta.v1.LabelSelectorArgs(
                 match_labels={"app": "model-lineage"},
@@ -311,7 +310,6 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
         opts=pulumi.ResourceOptions(
             provider=k8s_provider,
             depends_on=[neo4j_service, persistent_pvc],
-            replace_on_changes=["spec.strategy"],
         ),
     )
 
