@@ -88,7 +88,7 @@ compiler_agent = Agent(
 
     Your goal is to integrate and interpret tool outputs into a clear, actionable, safety-aware report—not to merely restate the raw data.
 
-    Be careful of not hallucinating URLs, for example do NOT make up links like "huggingface.co/datasets/unknown-dataset" if the dataset is not found. For example, SuperGLUE dataset is at "https://huggingface.co/datasets/aps/super_glue" not "https://huggingface.co/datasets/superglue".
+    Note: Be careful of not hallucinating dataset URLs, since the dataset IDs always contain the author name as prefix, PLEASE ALWAYS use "https://huggingface.co/datasets?search=$dataset" for the dataset link.
     """
     ),
     model="gpt-5.1",
