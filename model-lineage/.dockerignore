@@ -25,6 +25,8 @@ ENV/
 # Testing artifacts
 tests/
 .pytest_cache/
+coverage.xml
+coverage.json
 .coverage
 htmlcov/
 .tox/
