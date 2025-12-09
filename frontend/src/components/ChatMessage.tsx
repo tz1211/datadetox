@@ -24,6 +24,20 @@ interface ChatMessageProps {
 const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatMessageProps) => {
   const [isCopying, setIsCopying] = useState(false);
 
+  // Normalize message to auto-link common patterns before markdown rendering
+  const processedMessage = message
+    // Make "link: https://..." clickable (but ignore other words like "at:")
+    .replace(/(\blink)\s*:\s*(https?:\/\/\S+)/gi, '[$1]($2)')
+    // Convert "text (https://...)" patterns to markdown links
+    .replace(/(\S+)\s*\((https?:\/\/[^)]+)\)/g, '[$1]($2)')
+    // Drop lines that are only whitespace (including completely blank)
+    .replace(/^\s*\n/gm, '')
+    .replace(/^-[\s]*\n/gm, '')
+    .replace(/\n{2,}(?=-\s)/g, '\n')
+    .replace(/(-[^\n]+\n)\n+/g, '$1')
+    // Collapse any remaining multi-blank sequences to a single newline
+    .replace(/\n{2,}/g, '\n');
+
   const handleCopy = async () => {
     if (!message || isCopying || isThinking) return;
     try {
@@ -118,7 +132,7 @@ const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatM
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words prose-headings:my-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-[2px]">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {message.replace(/^-\s*\n/gm, '').replace(/\n{3,}/g, '\n\n')}
+              {processedMessage}
             </ReactMarkdown>
           </div>
         )}
