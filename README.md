@@ -340,7 +340,7 @@ The application is automatically deployed when changes are merged to the `main` 
    - Kubernetes deployment
 
 2. **View deployment status**:
-   - Check GitHub Actions tab: https://github.com/kushal-chat/actions
+   - Check GitHub Actions tab: https://github.com/tz1211/actions
    - View workflow: `.github/workflows/datadetox-cicd.yml`
 
 ![](docs/ms5/github_deployment_workflow.png)
